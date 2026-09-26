@@ -17,11 +17,11 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@rolldown/binding-win32-x64-msvc": "^1.2.11",
     "@types/node": "^24.13.3",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@vercel/node": "^16.0.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.6.1",
     "dotenv": "^18.0.4",
