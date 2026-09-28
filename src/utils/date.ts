@@ -25,3 +25,36 @@ export function isUpcoming(dateString: string): boolean {
   const today = getTodayDateString();
   return dateString >= today;
 }
+
+export function getDaysAgoDateString(days: number): string {
+  const now = new Date();
+  now.setDate(now.getDate() - days);
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function getStartOfYearDateString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-01-01`;
+}
+
+export type PastDateFilter = '30d' | '90d' | 'year' | 'all';
+
+export function isWithinPastFilter(dateString: string, filter: PastDateFilter): boolean {
+  const today = getTodayDateString();
+  if (dateString >= today) return false;
+
+  switch (filter) {
+    case '30d':
+      return dateString >= getDaysAgoDateString(30);
+    case '90d':
+      return dateString >= getDaysAgoDateString(90);
+    case 'year':
+      return dateString >= getStartOfYearDateString();
+    case 'all':
+    default:
+      return true;
+  }
+}
