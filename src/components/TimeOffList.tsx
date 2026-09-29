@@ -9,15 +9,12 @@ import {
   Sun, 
   Filter, 
   Building2,
-  Copy,
-  Check,
-  Download,
-  CalendarRange
+  FileSpreadsheet
 } from 'lucide-react';
 import type { TimeOffWithEmployee, Team } from '../types/database';
 import { formatDateBR, isUpcoming, isWithinPastFilter } from '../utils/date';
 import type { PastDateFilter } from '../utils/date';
-import { copyTableToClipboard, exportTableToExcel } from '../utils/export';
+import { exportTableToExcel } from '../utils/export';
 
 interface TimeOffListProps {
   timeOffs: TimeOffWithEmployee[];
@@ -44,7 +41,6 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL'); // 'ALL' ou id do time
   const [pastFilter, setPastFilter] = useState<PastDateFilter>('30d'); // '30d' | '90d' | 'year' | 'all'
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState<boolean>(false);
 
   // Filtra por data (próximas vs passadas com período) e por time selecionado
   const filteredList = useMemo(() => {
@@ -93,22 +89,6 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
     }
   };
 
-  const handleCopyClipboard = async () => {
-    if (filteredList.length === 0) {
-      onErrorToast('Não há folgas na visualização atual para copiar.');
-      return;
-    }
-
-    const success = await copyTableToClipboard(filteredList);
-    if (success) {
-      setIsCopied(true);
-      onSuccessToast('Tabela copiada com sucesso! Cole no Excel com Ctrl + V.');
-      setTimeout(() => setIsCopied(false), 2500);
-    } else {
-      onErrorToast('Não foi possível copiar os dados para a área de transferência.');
-    }
-  };
-
   const handleExportExcel = () => {
     if (filteredList.length === 0) {
       onErrorToast('Não há folgas na visualização atual para exportar.');
@@ -117,7 +97,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
 
     const prefix = activeTab === 'upcoming' ? 'proximas-folgas' : `folgas-passadas-${pastFilter}`;
     exportTableToExcel(filteredList, prefix);
-    onSuccessToast('Download do arquivo para Excel iniciado!');
+    onSuccessToast('Planilha Excel gerada com sucesso!');
   };
 
   const getTeamBadgeStyle = (teamName?: string) => {
@@ -136,17 +116,17 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-colors duration-200">
-      {/* Cabeçalho da listagem e abas */}
+      {/* Cabeçalho da listagem, abas e filtros integrados */}
       <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-white">Quadro de Folgas</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Acompanhe a escala de ausências por time, histórico e exportação
+            Acompanhe a escala de ausências por time e histórico
           </p>
         </div>
 
-        {/* Abas e Filtros */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Controles: Abas + Filtro de Período (Passadas) + Filtro de Time + Ícone do Excel */}
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Abas / Tabs para alternar entre Próximas e Passadas */}
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
             <button
@@ -192,6 +172,26 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
             </button>
           </div>
 
+          {/* Filtro de Período (discreto, aparece apenas quando a aba Passadas estiver ativa) */}
+          {activeTab === 'past' && (
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-in fade-in duration-150">
+              <label htmlFor="pastFilterSelect" className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                Período:
+              </label>
+              <select
+                id="pastFilterSelect"
+                value={pastFilter}
+                onChange={(e) => setPastFilter(e.target.value as PastDateFilter)}
+                className="bg-transparent text-sm font-medium text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="30d" className="dark:bg-slate-800">30 Dias</option>
+                <option value="90d" className="dark:bg-slate-800">90 Dias</option>
+                <option value="year" className="dark:bg-slate-800">Ano Inteiro</option>
+                <option value="all" className="dark:bg-slate-800">Todas</option>
+              </select>
+            </div>
+          )}
+
           {/* Filtro por Time */}
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
             <Filter className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
@@ -212,108 +212,17 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
               ))}
             </select>
           </div>
-        </div>
-      </div>
 
-      {/* Barra de Sub-filtros e Ações de Exportação */}
-      <div className="px-6 md:px-8 py-3.5 bg-slate-50/60 dark:bg-slate-850 border-b border-slate-200/70 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-        {/* Filtro de Período (visível somente quando aba for Folgas Passadas) */}
-        {activeTab === 'past' ? (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <CalendarRange className="w-3.5 h-3.5" />
-              Período Passado:
-            </span>
-            <div className="inline-flex bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-              <button
-                type="button"
-                onClick={() => setPastFilter('30d')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition ${
-                  pastFilter === '30d'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                30 Dias
-              </button>
-              <button
-                type="button"
-                onClick={() => setPastFilter('90d')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition ${
-                  pastFilter === '90d'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                90 Dias
-              </button>
-              <button
-                type="button"
-                onClick={() => setPastFilter('year')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition ${
-                  pastFilter === 'year'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Ano Inteiro
-              </button>
-              <button
-                type="button"
-                onClick={() => setPastFilter('all')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition ${
-                  pastFilter === 'all'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Todas
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-slate-500 dark:text-slate-400 font-medium">
-            Exibindo <strong>{filteredList.length}</strong> registro(s) futuro(s) agendado(s)
-          </div>
-        )}
-
-        {/* Botões de Ação para Excel */}
-        <div className="flex items-center gap-2 ml-auto">
-          {/* Botão Copiar para Clipboard */}
-          <button
-            type="button"
-            onClick={handleCopyClipboard}
-            disabled={filteredList.length === 0}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-semibold shadow-2xs transition disabled:opacity-40 disabled:cursor-not-allowed ${
-              isCopied
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200'
-            }`}
-            title="Copia os dados formatados em colunas para colar direto no Excel (Ctrl + V)"
-          >
-            {isCopied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Copiado!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                <span>Copiar p/ Excel</span>
-              </>
-            )}
-          </button>
-
-          {/* Botão Exportar Excel / CSV */}
+          {/* Ícone Discreto do Excel (Sem texto, ao lado do filtro de time) */}
           <button
             type="button"
             onClick={handleExportExcel}
             disabled={filteredList.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-semibold shadow-2xs transition disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Baixa arquivo .csv formatado para o Excel"
+            title="Exportar para Excel (.csv)"
+            aria-label="Exportar para Excel"
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-800/60 transition shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Exportar Excel</span>
+            <FileSpreadsheet className="w-4 h-4" />
           </button>
         </div>
       </div>
