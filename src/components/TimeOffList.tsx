@@ -15,6 +15,7 @@ import type { TimeOffWithEmployee, Team } from '../types/database';
 import { formatDateBR, isUpcoming, isWithinPastFilter } from '../utils/date';
 import type { PastDateFilter } from '../utils/date';
 import { exportTableToExcel } from '../utils/export';
+import { useAuth } from '../context/AuthContext';
 
 interface TimeOffListProps {
   timeOffs: TimeOffWithEmployee[];
@@ -37,6 +38,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
   onSuccessToast,
   onErrorToast,
 }) => {
+  const { isReadOnly } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL'); // 'ALL' ou id do time
   const [pastFilter, setPastFilter] = useState<PastDateFilter>('30d'); // '30d' | '90d' | 'year' | 'all'
@@ -261,7 +263,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                 <th className="py-3.5 px-6">Data</th>
                 <th className="py-3.5 px-6">Tipo</th>
                 <th className="py-3.5 px-6">Descrição</th>
-                <th className="py-3.5 px-6 text-right">Ações</th>
+                {!isReadOnly && <th className="py-3.5 px-6 text-right">Ações</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
@@ -333,42 +335,44 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                     </td>
 
                     {/* Ações */}
-                    <td className="py-4 px-6 text-right whitespace-nowrap">
-                      {isConfirming ? (
-                        <div className="flex items-center justify-end gap-2 animate-in fade-in">
-                          <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold mr-1">
-                            Excluir?
-                          </span>
+                    {!isReadOnly && (
+                      <td className="py-4 px-6 text-right whitespace-nowrap">
+                        {isConfirming ? (
+                          <div className="flex items-center justify-end gap-2 animate-in fade-in">
+                            <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold mr-1">
+                              Excluir?
+                            </span>
+                            <button
+                              onClick={() => handleDelete(item.id, employeeName)}
+                              disabled={isItemDeleting}
+                              className="px-2.5 py-1 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition shadow-sm"
+                            >
+                              Sim
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              disabled={isItemDeleting}
+                              className="px-2 py-1 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition"
+                            >
+                              Não
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            onClick={() => handleDelete(item.id, employeeName)}
+                            onClick={() => setConfirmDeleteId(item.id)}
                             disabled={isItemDeleting}
-                            className="px-2.5 py-1 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition shadow-sm"
+                            title="Excluir folga"
+                            className="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
                           >
-                            Sim
+                            {isItemDeleting ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            disabled={isItemDeleting}
-                            className="px-2 py-1 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition"
-                          >
-                            Não
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDeleteId(item.id)}
-                          disabled={isItemDeleting}
-                          title="Excluir folga"
-                          className="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
-                        >
-                          {isItemDeleting ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </button>
-                      )}
-                    </td>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarRange, ShieldAlert, CheckCircle2, Sun, Moon, LogOut, Mail } from 'lucide-react';
+import { CalendarRange, ShieldAlert, CheckCircle2, Sun, Moon, LogOut, Mail, ShieldCheck, Eye } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenEmailModal }) => {
   const { theme, toggleTheme } = useTheme();
-  const { logout, user } = useAuth();
+  const { logout, user, isAdmin, isReadOnly } = useAuth();
 
   return (
     <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 sticky top-0 z-30 shadow-xs transition-colors duration-200">
@@ -21,13 +21,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenEmailModal }) => {
             <CalendarRange className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
                 Gestão de Folgas
               </h1>
               <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
                 TIME AMS
               </span>
+              {/* Badge de Perfil de Acesso */}
+              {isAdmin ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/80 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
+                  <ShieldCheck className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                  ADM
+                </span>
+              ) : isReadOnly ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60">
+                  <Eye className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  CONSULTA
+                </span>
+              ) : null}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Escala de trabalho, folgas e banco de horas compensatório
@@ -37,8 +49,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenEmailModal }) => {
 
         {/* Controles do Topo: Relatórios + Alternador de Tema + Status Supabase + Logout */}
         <div className="flex items-center gap-2.5">
-          {/* Botão de Relatórios por E-mail */}
-          {onOpenEmailModal && (
+          {/* Botão de Relatórios por E-mail (Apenas para Administrador) */}
+          {isAdmin && onOpenEmailModal && (
             <button
               onClick={onOpenEmailModal}
               type="button"
@@ -92,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenEmailModal }) => {
             onClick={logout}
             type="button"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800 transition text-xs font-semibold shadow-xs"
-            title={`Conectado como ${user?.username || 'AMS-CLICK'}. Clique para sair.`}
+            title={`Conectado como ${user?.username}. Clique para sair.`}
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Sair</span>

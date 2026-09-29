@@ -1,23 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-interface AuthUser {
-  username: string;
-  role?: string;
+export type UserRole = 'admin' | 'readonly';
+
+export interface AuthUser {
+  username: 'AMS-ADM' | 'AMS-CLICK' | string;
+  role: UserRole;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  isReadOnly: boolean;
   loading: boolean;
-  login: (passwordOrUser: string, passwordInput?: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  FIXED_USER: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const FIXED_USERNAME = 'AMS-CLICK';
-const MASTER_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'ams@2026';
+// Credenciais configuradas (com fallbacks para as senhas solicitadas)
+const ADM_PASSWORD = import.meta.env.VITE_ADM_PASSWORD || 'AMS2026AMS';
+const CLICK_PASSWORD = import.meta.env.VITE_CLICK_PASSWORD || import.meta.env.VITE_ADMIN_PASSWORD || 'ams@2026';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -37,32 +41,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const login = async (userOrPass: string, passwordInput?: string) => {
-    let submittedUser = FIXED_USERNAME;
-    let submittedPass = '';
+  const login = async (usernameInput: string, passwordInput: string) => {
+    const usernameClean = usernameInput.trim().toUpperCase();
+    const passClean = passwordInput.trim();
 
-    if (passwordInput !== undefined) {
-      // Passou (username, password)
-      submittedUser = userOrPass.trim();
-      submittedPass = passwordInput.trim();
-    } else {
-      // Passou apenas (password)
-      submittedPass = userOrPass.trim();
+    if (!usernameClean) {
+      throw new Error('Por favor, selecione ou informe o usuário de acesso.');
     }
 
-    // Validação estrita: Usuário deve ser AMS-CLICK (case-insensitive)
-    if (submittedUser.toUpperCase() !== FIXED_USERNAME) {
-      throw new Error(`Usuário inválido. O acesso é exclusivo para o usuário ${FIXED_USERNAME}.`);
+    if (!passClean) {
+      throw new Error('Por favor, informe a senha de acesso.');
     }
 
-    // Validação da senha
-    if (!submittedPass || submittedPass !== MASTER_PASSWORD) {
-      throw new Error('Senha incorreta. Verifique a senha de acesso.');
+    if (usernameClean === 'AMS-ADM') {
+      if (passClean !== ADM_PASSWORD) {
+        throw new Error('Senha incorreta para o usuário Administrador AMS-ADM.');
+      }
+      const authUser: AuthUser = { username: 'AMS-ADM', role: 'admin' };
+      setUser(authUser);
+      localStorage.setItem('gestao-folgas-auth-user', JSON.stringify(authUser));
+      return;
     }
 
-    const authUser: AuthUser = { username: FIXED_USERNAME, role: 'admin' };
-    setUser(authUser);
-    localStorage.setItem('gestao-folgas-auth-user', JSON.stringify(authUser));
+    if (usernameClean === 'AMS-CLICK') {
+      if (passClean !== CLICK_PASSWORD) {
+        throw new Error('Senha incorreta para o usuário Consulta AMS-CLICK.');
+      }
+      const authUser: AuthUser = { username: 'AMS-CLICK', role: 'readonly' };
+      setUser(authUser);
+      localStorage.setItem('gestao-folgas-auth-user', JSON.stringify(authUser));
+      return;
+    }
+
+    throw new Error('Usuário não reconhecido. Utilize AMS-ADM ou AMS-CLICK.');
   };
 
   const logout = () => {
@@ -70,15 +81,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('gestao-folgas-auth-user');
   };
 
+  const isAdmin = user?.role === 'admin';
+  const isReadOnly = user?.role === 'readonly';
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: Boolean(user),
+        isAdmin,
+        isReadOnly,
         loading,
         login,
         logout,
-        FIXED_USER: FIXED_USERNAME,
       }}
     >
       {children}

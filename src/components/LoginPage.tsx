@@ -9,15 +9,18 @@ import {
   ShieldCheck, 
   Sun, 
   Moon,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert,
+  EyeIcon
 } from 'lucide-react';
-import { useAuth, FIXED_USERNAME } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
+  const [selectedUser, setSelectedUser] = useState<'AMS-ADM' | 'AMS-CLICK'>('AMS-ADM');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +36,7 @@ export const LoginPage: React.FC = () => {
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
-      await login(FIXED_USERNAME, password);
+      await login(selectedUser, password);
     } catch (err: any) {
       setErrorMessage(err.message || 'Falha na autenticação.');
     } finally {
@@ -81,7 +84,7 @@ export const LoginPage: React.FC = () => {
               Gestão de Folgas
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Acesso exclusivo para o usuário <strong className="text-blue-600 dark:text-blue-400 font-bold">{FIXED_USERNAME}</strong>
+              Selecione o seu perfil e informe sua senha
             </p>
           </div>
 
@@ -96,31 +99,61 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Formulário com Usuário Fixo */}
+          {/* Formulário */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Usuário Fixo */}
+            {/* Escolha do Usuário / Perfil */}
             <div>
-              <label 
-                htmlFor="fixedUser" 
-                className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between"
-              >
-                <span className="flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                  Usuário de Acesso
-                </span>
-                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold uppercase bg-blue-50 dark:bg-blue-950/80 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800/60">
-                  Fixo
-                </span>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                Perfil de Acesso
               </label>
-              <div className="relative">
-                <input
-                  id="fixedUser"
-                  type="text"
-                  value={FIXED_USERNAME}
-                  readOnly
-                  disabled
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 font-bold text-sm tracking-wider cursor-not-allowed select-none"
-                />
+              
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* Botão AMS-ADM */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedUser('AMS-ADM');
+                    setPassword('');
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
+                    selectedUser === 'AMS-ADM'
+                      ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-500 text-blue-900 dark:text-blue-100 shadow-sm ring-1 ring-blue-500'
+                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className="font-extrabold text-sm tracking-wide">AMS-ADM</span>
+                    <ShieldAlert className={`w-3.5 h-3.5 ${selectedUser === 'AMS-ADM' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`} />
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                    Acesso Completo
+                  </span>
+                </button>
+
+                {/* Botão AMS-CLICK */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedUser('AMS-CLICK');
+                    setPassword('');
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
+                    selectedUser === 'AMS-CLICK'
+                      ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-900 dark:text-amber-100 shadow-sm ring-1 ring-amber-500'
+                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className="font-extrabold text-sm tracking-wide">AMS-CLICK</span>
+                    <EyeIcon className={`w-3.5 h-3.5 ${selectedUser === 'AMS-CLICK' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`} />
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                    Somente Leitura
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -131,7 +164,7 @@ export const LoginPage: React.FC = () => {
                 className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5"
               >
                 <Lock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                Senha de Acesso
+                Senha de Acesso ({selectedUser})
               </label>
               <div className="relative">
                 <input
@@ -142,7 +175,7 @@ export const LoginPage: React.FC = () => {
                     setPassword(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
-                  placeholder="Informe sua senha..."
+                  placeholder="Informe a senha correspondente..."
                   disabled={isSubmitting}
                   autoFocus
                   autoComplete="current-password"
@@ -174,15 +207,18 @@ export const LoginPage: React.FC = () => {
                   Liberando acesso...
                 </>
               ) : (
-                'Liberar e Entrar'
+                `Entrar como ${selectedUser}`
               )}
             </button>
           </form>
 
-          {/* Dica da Senha */}
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              💡 Senha definida no arquivo <code className="font-mono text-slate-600 dark:text-slate-300">.env</code> (<code className="font-mono">VITE_ADMIN_PASSWORD</code>).
+          {/* Dica Informativa */}
+          <div className="mt-8 pt-5 border-t border-slate-100 dark:border-slate-800 text-center space-y-1">
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              🔑 <strong>AMS-ADM:</strong> Permite cadastrar, editar e excluir registros.
+            </p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              👁️ <strong>AMS-CLICK:</strong> Permite consultar, filtrar e exportar tabelas.
             </p>
           </div>
         </div>

@@ -12,10 +12,10 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { isSupabaseConfigured } from './lib/supabase';
-import { Database, Loader2 } from 'lucide-react';
+import { Database, Loader2, Eye } from 'lucide-react';
 
 function MainApp() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, isAdmin, isReadOnly, user } = useAuth();
   const { showToast } = useToast();
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   
@@ -91,17 +91,38 @@ function MainApp() {
           </div>
         )}
 
-        {/* Formulário de Cadastro Superior */}
-        <TimeOffForm
-          employees={employees}
-          teams={teams}
-          loadingEmployees={loadingEmployees}
-          onAddEmployee={addEmployee}
-          onAddTimeOff={addTimeOff}
-          checkConflicts={checkConflicts}
-          onSuccessToast={(msg) => showToast(msg, 'success')}
-          onErrorToast={(msg) => showToast(msg, 'error')}
-        />
+        {/* Banner Informativo de Perfil Consulta (AMS-CLICK) */}
+        {isReadOnly && (
+          <div className="mb-8 p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 shadow-xs transition-colors">
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex-shrink-0">
+                <Eye className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-amber-950 dark:text-amber-100">
+                  Modo Consulta Ativo ({user?.username})
+                </h3>
+                <p className="text-xs text-amber-800/90 dark:text-amber-300/80 mt-0.5">
+                  Você possui permissão para consultar o quadro de folgas e exportar planilhas para o Excel. O cadastro e exclusão de folgas são restritos ao perfil <strong>AMS-ADM</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Formulário de Cadastro Superior (Apenas Administrador) */}
+        {isAdmin && (
+          <TimeOffForm
+            employees={employees}
+            teams={teams}
+            loadingEmployees={loadingEmployees}
+            onAddEmployee={addEmployee}
+            onAddTimeOff={addTimeOff}
+            checkConflicts={checkConflicts}
+            onSuccessToast={(msg) => showToast(msg, 'success')}
+            onErrorToast={(msg) => showToast(msg, 'error')}
+          />
+        )}
 
         {/* Data Grid / Tabela Inferior de Folgas com Filtro por Time */}
         <TimeOffList
@@ -114,19 +135,21 @@ function MainApp() {
           onErrorToast={(msg) => showToast(msg, 'error')}
         />
 
-        {/* Modal de Configuração de Relatórios por E-mail */}
-        <EmailReportsModal
-          isOpen={isEmailModalOpen}
-          onClose={() => setIsEmailModalOpen(false)}
-          recipients={recipients}
-          loadingRecipients={loadingRecipients}
-          onAddRecipient={addRecipient}
-          onToggleActive={toggleActive}
-          onDeleteRecipient={deleteRecipient}
-          timeOffs={timeOffs}
-          onSuccessToast={(msg) => showToast(msg, 'success')}
-          onErrorToast={(msg) => showToast(msg, 'error')}
-        />
+        {/* Modal de Configuração de Relatórios por E-mail (Apenas Administrador) */}
+        {isAdmin && (
+          <EmailReportsModal
+            isOpen={isEmailModalOpen}
+            onClose={() => setIsEmailModalOpen(false)}
+            recipients={recipients}
+            loadingRecipients={loadingRecipients}
+            onAddRecipient={addRecipient}
+            onToggleActive={toggleActive}
+            onDeleteRecipient={deleteRecipient}
+            timeOffs={timeOffs}
+            onSuccessToast={(msg) => showToast(msg, 'success')}
+            onErrorToast={(msg) => showToast(msg, 'error')}
+          />
+        )}
       </main>
 
       <footer className="py-6 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-center text-xs text-slate-400 dark:text-slate-500 transition-colors duration-200">
