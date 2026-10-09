@@ -60,40 +60,32 @@ export function isWithinPastFilter(dateString: string, filter: PastDateFilter): 
 }
 
 /**
- * Calcula a data de retorno (retorno ao trabalho) com base exclusivamente em dias úteis (Segunda a Sexta).
- * Conta N dias úteis de férias a partir da data de início e retorna o próximo dia útil subsequente.
+ * Calcula a data de retorno (retorno ao trabalho):
+ * - A duração das férias é somada em dias corridos (incluindo sábados e domingos).
+ * - A volta não pode acontecer no sábado nem domingo; caso a data caia em fim de semana,
+ *   a data de volta é automaticamente projetada para a segunda-feira seguinte.
  */
 export function calculateReturnDate(startDateString: string, daysCount: number): string {
   if (!startDateString || daysCount <= 0) return startDateString;
 
   const [year, month, day] = startDateString.split('-').map(Number);
-  const current = new Date(year, month - 1, day);
+  const date = new Date(year, month - 1, day);
 
-  // Se a data de início for sábado ou domingo, avança para a próxima segunda-feira
-  while (current.getDay() === 0 || current.getDay() === 6) {
-    current.setDate(current.getDate() + 1);
+  // Soma a quantidade de dias corridos de férias
+  date.setDate(date.getDate() + Number(daysCount));
+
+  // Se cair no sábado (dia 6), volta na segunda-feira (+2 dias)
+  if (date.getDay() === 6) {
+    date.setDate(date.getDate() + 2);
+  } 
+  // Se cair no domingo (dia 0), volta na segunda-feira (+1 dia)
+  else if (date.getDay() === 0) {
+    date.setDate(date.getDate() + 1);
   }
 
-  let businessDaysCounted = 0;
-  while (businessDaysCounted < daysCount) {
-    businessDaysCounted++;
-    if (businessDaysCounted < daysCount) {
-      current.setDate(current.getDate() + 1);
-      while (current.getDay() === 0 || current.getDay() === 6) {
-        current.setDate(current.getDate() + 1);
-      }
-    }
-  }
-
-  // A data de retorno ao trabalho é o próximo dia útil após o término dos dias de férias
-  current.setDate(current.getDate() + 1);
-  while (current.getDay() === 0 || current.getDay() === 6) {
-    current.setDate(current.getDate() + 1);
-  }
-
-  const resYear = current.getFullYear();
-  const resMonth = String(current.getMonth() + 1).padStart(2, '0');
-  const resDay = String(current.getDate()).padStart(2, '0');
+  const resYear = date.getFullYear();
+  const resMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const resDay = String(date.getDate()).padStart(2, '0');
   return `${resYear}-${resMonth}-${resDay}`;
 }
 

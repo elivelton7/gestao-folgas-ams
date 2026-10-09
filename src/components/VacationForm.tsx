@@ -99,7 +99,7 @@ export const VacationForm: React.FC<VacationFormProps> = ({
       const calculated = calculateReturnDate(startDate, Number(days));
       setReturnDate(calculated);
       setIsReturnDateManuallyEdited(false);
-      onSuccessToast('Data de volta recalculada com base nos dias úteis!');
+      onSuccessToast('Data de volta recalculada (dias corridos com volta em dia útil)!');
     }
   };
 
@@ -299,7 +299,7 @@ export const VacationForm: React.FC<VacationFormProps> = ({
                   Dias de Férias *
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">
-                  (Dias úteis)
+                  (Dias corridos)
                 </span>
               </label>
               <input
@@ -349,7 +349,7 @@ export const VacationForm: React.FC<VacationFormProps> = ({
                   <button
                     type="button"
                     onClick={handleRecalculateReturnDate}
-                    title="Recalcular automaticamente baseado nos dias úteis"
+                    title="Recalcular automaticamente baseado nos dias corridos com retorno em dia útil"
                     className="text-[11px] text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
                   >
                     <Sparkles className="w-3 h-3" /> Auto
@@ -375,7 +375,7 @@ export const VacationForm: React.FC<VacationFormProps> = ({
                     ✏️ Data editada manualmente.
                   </span>
                 ) : (
-                  <span>✨ Preenchida automaticamente (dias úteis: Seg-Sex). Você pode alterar se houver horas/compensações.</span>
+                  <span>✨ Preenchida automaticamente (dias corridos; retorno na segunda-feira caso caia em fim de semana). Editável se houver compensações.</span>
                 )}
               </p>
             </div>
