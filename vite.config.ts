@@ -60,7 +60,15 @@ function buildReportEmailHtml({
     })
     .join('');
 
-  const timeOffRowsHtml = (timeOffs || [])
+  // Linhas das Folgas (apenas folgas a partir de hoje)
+  const validTimeOffs = (timeOffs || [])
+    .filter((item: any) => {
+      if (!item.date) return false;
+      return item.date >= todayStr;
+    })
+    .sort((a: any, b: any) => a.date.localeCompare(b.date));
+
+  const timeOffRowsHtml = validTimeOffs
     .map((item: any) => {
       const employeeName = item.employees?.name || 'Colaborador';
       const teamName = item.employees?.teams?.name || 'Geral';

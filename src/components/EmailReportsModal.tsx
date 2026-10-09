@@ -69,6 +69,13 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
       });
   }, [vacations, todayStr]);
 
+  // Folgas filtradas para prévia e disparo: SOMENTE a partir de hoje (exclui passadas)
+  const previewTimeOffs = useMemo(() => {
+    return (timeOffs || [])
+      .filter((item) => item.date >= todayStr)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [timeOffs, todayStr]);
+
   if (!isOpen) return null;
 
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -114,8 +121,8 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
         },
         body: JSON.stringify({
           recipients: activeRecipients,
-          timeOffs: timeOffs,
-          vacations: vacations,
+          timeOffs: previewTimeOffs,
+          vacations: previewVacations,
         }),
       });
 
@@ -617,13 +624,13 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                     <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     <span>Próximas Folgas & Compensações</span>
                     <span className="ml-auto text-[10px] font-normal text-slate-400 lowercase">
-                      {timeOffs.length} registro(s)
+                      {previewTimeOffs.length} registro(s)
                     </span>
                   </div>
 
-                  {timeOffs.length === 0 ? (
+                  {previewTimeOffs.length === 0 ? (
                     <div className="text-center py-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl text-slate-400 italic">
-                      Não há folgas cadastradas no momento.
+                      Não há folgas cadastradas para hoje ou próximas datas.
                     </div>
                   ) : (
                     <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-xl">
@@ -638,7 +645,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                          {timeOffs.slice(0, 10).map((item) => (
+                          {previewTimeOffs.map((item) => (
                             <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                               <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
                                 {item.employees?.name}
