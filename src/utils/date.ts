@@ -58,3 +58,50 @@ export function isWithinPastFilter(dateString: string, filter: PastDateFilter): 
       return true;
   }
 }
+
+/**
+ * Calcula a data de retorno (retorno ao trabalho) com base exclusivamente em dias úteis (Segunda a Sexta).
+ * Conta N dias úteis de férias a partir da data de início e retorna o próximo dia útil subsequente.
+ */
+export function calculateReturnDate(startDateString: string, daysCount: number): string {
+  if (!startDateString || daysCount <= 0) return startDateString;
+
+  const [year, month, day] = startDateString.split('-').map(Number);
+  const current = new Date(year, month - 1, day);
+
+  // Se a data de início for sábado ou domingo, avança para a próxima segunda-feira
+  while (current.getDay() === 0 || current.getDay() === 6) {
+    current.setDate(current.getDate() + 1);
+  }
+
+  let businessDaysCounted = 0;
+  while (businessDaysCounted < daysCount) {
+    businessDaysCounted++;
+    if (businessDaysCounted < daysCount) {
+      current.setDate(current.getDate() + 1);
+      while (current.getDay() === 0 || current.getDay() === 6) {
+        current.setDate(current.getDate() + 1);
+      }
+    }
+  }
+
+  // A data de retorno ao trabalho é o próximo dia útil após o término dos dias de férias
+  current.setDate(current.getDate() + 1);
+  while (current.getDay() === 0 || current.getDay() === 6) {
+    current.setDate(current.getDate() + 1);
+  }
+
+  const resYear = current.getFullYear();
+  const resMonth = String(current.getMonth() + 1).padStart(2, '0');
+  const resDay = String(current.getDate()).padStart(2, '0');
+  return `${resYear}-${resMonth}-${resDay}`;
+}
+
+/**
+ * Férias são consideradas futuras ou em andamento se a data de retorno ainda não passou.
+ */
+export function isVacationUpcoming(returnDateString: string): boolean {
+  const today = getTodayDateString();
+  return returnDateString >= today;
+}
+

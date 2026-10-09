@@ -5,6 +5,7 @@ import type { Employee, Team } from '../types/database';
 interface AddEmployeeModalProps {
   isOpen: boolean;
   teams: Team[];
+  initialTeamId?: string;
   onClose: () => void;
   onAddEmployee: (payload: { name: string; team_id?: string | null }) => Promise<Employee>;
   onSuccess: (newEmployee: Employee) => void;
@@ -13,14 +14,22 @@ interface AddEmployeeModalProps {
 export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
   isOpen,
   teams,
+  initialTeamId,
   onClose,
   onAddEmployee,
   onSuccess,
 }) => {
   const [name, setName] = useState('');
-  const [teamId, setTeamId] = useState<string>('');
+  const [teamId, setTeamId] = useState<string>(initialTeamId || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Sincroniza teamId caso o initialTeamId mude
+  React.useEffect(() => {
+    if (isOpen && initialTeamId) {
+      setTeamId(initialTeamId);
+    }
+  }, [isOpen, initialTeamId]);
 
   if (!isOpen) return null;
 

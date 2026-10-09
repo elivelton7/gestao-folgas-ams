@@ -1,14 +1,16 @@
 import React from 'react';
-import { CalendarRange, ShieldAlert, CheckCircle2, Sun, Moon, LogOut, Mail, ShieldCheck, Eye } from 'lucide-react';
+import { CalendarRange, ShieldAlert, CheckCircle2, Sun, Moon, LogOut, Mail, ShieldCheck, Eye, Palmtree } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
+  activeView: 'folgas' | 'ferias';
+  onViewChange: (view: 'folgas' | 'ferias') => void;
   onOpenEmailModal?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenEmailModal }) => {
+export const Header: React.FC<HeaderProps> = ({ activeView, onViewChange, onOpenEmailModal }) => {
   const { theme, toggleTheme } = useTheme();
   const { logout, user, isAdmin, isReadOnly } = useAuth();
 
@@ -42,10 +44,40 @@ export const Header: React.FC<HeaderProps> = ({ onOpenEmailModal }) => {
               ) : null}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Escala de trabalho, folgas e banco de horas compensatório
+              Escala de trabalho, folgas e programação de férias das equipes
             </p>
           </div>
         </div>
+
+        {/* Navegação entre Páginas: Folgas vs Férias */}
+        <nav aria-label="Navegação Principal" className="flex items-center">
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+            <button
+              onClick={() => onViewChange('folgas')}
+              type="button"
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+                activeView === 'folgas'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <CalendarRange className="w-4 h-4" />
+              <span>Folgas</span>
+            </button>
+            <button
+              onClick={() => onViewChange('ferias')}
+              type="button"
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+                activeView === 'ferias'
+                  ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <Palmtree className="w-4 h-4" />
+              <span>Férias</span>
+            </button>
+          </div>
+        </nav>
 
         {/* Controles do Topo: Relatórios + Alternador de Tema + Status Supabase + Logout */}
         <div className="flex items-center gap-2.5">

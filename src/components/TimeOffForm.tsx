@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -7,7 +7,8 @@ import {
   Plus, 
   AlertTriangle, 
   Check, 
-  Loader2 
+  Loader2,
+  Building2
 } from 'lucide-react';
 import type { Employee, CreateTimeOffPayload, TimeOffWithEmployee, Team } from '../types/database';
 import { getTodayDateString } from '../utils/date';
@@ -35,11 +36,34 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
   onErrorToast,
 }) => {
   // Estados do formulário
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [employeeId, setEmployeeId] = useState('');
   const [date, setDate] = useState(getTodayDateString());
   const [description, setDescription] = useState('');
   const [isFullDay, setIsFullDay] = useState(true);
   const [hours, setHours] = useState<number | ''>(4);
+
+  // Filtra colaboradores pelo time selecionado
+  const filteredEmployees = useMemo(() => {
+    if (!selectedTeamId) return [];
+    return employees.filter((emp) => {
+      const teamId = emp.team_id || emp.teams?.id;
+      return teamId === selectedTeamId;
+    });
+  }, [employees, selectedTeamId]);
+
+  // Se o time for alterado e o colaborador selecionado não pertencer ao novo time, limpa a seleção
+  const handleTeamChange = (newTeamId: string) => {
+    setSelectedTeamId(newTeamId);
+    if (employeeId) {
+      const stillValid = employees.some(
+        (emp) => emp.id === employeeId && (emp.team_id === newTeamId || emp.teams?.id === newTeamId)
+      );
+      if (!stillValid) {
+        setEmployeeId('');
+      }
+    }
+  };
 
   // Estados de controle e UX
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -84,6 +108,11 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!selectedTeamId) {
+      onErrorToast('Selecione primeiro o time / equipe.');
+      return;
+    }
+
     if (!employeeId) {
       onErrorToast('Selecione um colaborador da equipe.');
       return;
@@ -111,7 +140,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
 
       onSuccessToast('Folga cadastrada com sucesso!');
       
-      // Reseta os campos mantendo a data para facilitar lançamentos em série
+      // Reseta os campos mantendo o time e a data para facilitar lançamentos em série
       setDescription('');
       setIsFullDay(true);
       setHours(4);
@@ -127,6 +156,10 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
   };
 
   const handleEmployeeCreated = (newEmp: Employee) => {
+    const teamId = newEmp.team_id || newEmp.teams?.id;
+    if (teamId) {
+      setSelectedTeamId(teamId);
+    }
     setEmployeeId(newEmp.id);
     onSuccessToast(`Colaborador "${newEmp.name}" adicionado e selecionado!`);
   };
@@ -147,8 +180,31 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Colaborador */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* 1. Time / Equipe */}
+            <div>
+              <label htmlFor="timeOffTeamSelect" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                Time / Equipe *
+              </label>
+              <select
+                id="timeOffTeamSelect"
+                value={selectedTeamId}
+                onChange={(e) => handleTeamChange(e.target.value)}
+                disabled={isSubmitting}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-sm transition"
+                required
+              >
+                <option value="">Selecione o time...</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 2. Colaborador (filtrado pelo Time) */}
             <div>
               <label htmlFor="employeeSelect" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
                 <User className="w-4 h-4 text-slate-400 dark:text-slate-500" />
@@ -159,19 +215,24 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                   id="employeeSelect"
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
-                  disabled={loadingEmployees || isSubmitting}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-sm transition disabled:opacity-60"
+                  disabled={!selectedTeamId || loadingEmployees || isSubmitting}
+                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-sm transition disabled:opacity-60 disabled:bg-slate-50 dark:disabled:bg-slate-800/50"
                   required
                 >
-                  <option value="">Selecione um colaborador...</option>
-                  {employees.map((emp) => {
-                    const teamName = emp.teams?.name ? ` [${emp.teams.name}]` : '';
-                    return (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name}{teamName}
-                      </option>
-                    );
-                  })}
+                  {!selectedTeamId ? (
+                    <option value="">Selecione o time primeiro...</option>
+                  ) : filteredEmployees.length === 0 ? (
+                    <option value="">Nenhum colaborador neste time...</option>
+                  ) : (
+                    <>
+                      <option value="">Selecione um colaborador...</option>
+                      {filteredEmployees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
                 <button
                   type="button"
@@ -185,7 +246,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
               </div>
             </div>
 
-            {/* Campo de Data */}
+            {/* 3. Campo de Data */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="timeOffDate" className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -194,7 +255,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                 </label>
                 {isCheckingConflict && (
                   <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Verificando escala...
+                    <Loader2 className="w-3 h-3 animate-spin" /> Verificando...
                   </span>
                 )}
               </div>
@@ -207,38 +268,38 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-sm transition"
                 required
               />
-
-              {/* REGRA DE NEGÓCIO CRÍTICA: Alerta de Conflito de Data */}
-              {conflicts.length > 0 && (
-                <div 
-                  className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 animate-in fade-in slide-in-from-top-1"
-                  role="alert"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 leading-tight">
-                        Atenção: Já existe outro colaborador do time com folga marcada para este dia.
-                      </p>
-                      <ul className="mt-1.5 space-y-1 text-xs text-amber-800 dark:text-amber-300/90">
-                        {conflicts.map((conf) => {
-                          const conflictTeam = conf.employees?.teams?.name ? ` [${conf.employees.teams.name}]` : '';
-                          return (
-                            <li key={conf.id} className="flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                              <strong className="font-semibold">{conf.employees?.name || 'Colaborador'}{conflictTeam}:</strong>{' '}
-                              {conf.is_full_day ? 'Dia inteiro' : `${conf.hours} horas`}
-                              {conf.description ? ` (${conf.description})` : ''}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* REGRA DE NEGÓCIO CRÍTICA: Alerta de Conflito de Data */}
+          {conflicts.length > 0 && (
+            <div 
+              className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 animate-in fade-in slide-in-from-top-1"
+              role="alert"
+            >
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 leading-tight">
+                    Atenção: Já existe outro colaborador do time com folga marcada para este dia.
+                  </p>
+                  <ul className="mt-1.5 space-y-1 text-xs text-amber-800 dark:text-amber-300/90">
+                    {conflicts.map((conf) => {
+                      const conflictTeam = conf.employees?.teams?.name ? ` [${conf.employees.teams.name}]` : '';
+                      return (
+                        <li key={conf.id} className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <strong className="font-semibold">{conf.employees?.name || 'Colaborador'}{conflictTeam}:</strong>{' '}
+                          {conf.is_full_day ? 'Dia inteiro' : `${conf.hours} horas`}
+                          {conf.description ? ` (${conf.description})` : ''}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             {/* Descrição */}
@@ -338,6 +399,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
       <AddEmployeeModal
         isOpen={isModalOpen}
         teams={teams}
+        initialTeamId={selectedTeamId}
         onClose={() => setIsModalOpen(false)}
         onAddEmployee={onAddEmployee}
         onSuccess={handleEmployeeCreated}

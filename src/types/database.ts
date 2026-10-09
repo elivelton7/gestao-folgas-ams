@@ -59,3 +59,26 @@ export interface CreateReportRecipientPayload {
   email: string;
   frequency: ReportFrequency;
 }
+
+export interface Vacation {
+  id: string;
+  employee_id: string;
+  start_date: string; // YYYY-MM-DD
+  return_date: string; // YYYY-MM-DD
+  days: number;
+  notes: string | null;
+  created_at?: string;
+}
+
+export interface VacationWithEmployee extends Vacation {
+  employees: Employee;
+}
+
+export interface CreateVacationPayload {
+  employee_id: string;
+  start_date: string;
+  return_date: string;
+  days: number;
+  notes?: string | null;
+}
+

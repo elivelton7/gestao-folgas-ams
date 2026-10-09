@@ -98,8 +98,35 @@ ON public.report_recipients FOR UPDATE TO anon, authenticated USING (true);
 CREATE POLICY "Permitir exclusão de destinatários" 
 ON public.report_recipients FOR DELETE TO anon, authenticated USING (true);
 
--- 8. Dados iniciais dos times principais (Stellantis e Iveco)
+-- 8. Tabela: vacations (Férias)
+CREATE TABLE IF NOT EXISTS public.vacations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
+    start_date DATE NOT NULL,
+    return_date DATE NOT NULL,
+    days INTEGER NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_vacations_start_date ON public.vacations(start_date);
+CREATE INDEX IF NOT EXISTS idx_vacations_return_date ON public.vacations(return_date);
+CREATE INDEX IF NOT EXISTS idx_vacations_employee_id ON public.vacations(employee_id);
+
+ALTER TABLE public.vacations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Permitir leitura de férias" 
+ON public.vacations FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY "Permitir inserção de férias" 
+ON public.vacations FOR INSERT TO anon, authenticated WITH CHECK (true);
+
+CREATE POLICY "Permitir exclusão de férias" 
+ON public.vacations FOR DELETE TO anon, authenticated USING (true);
+
+-- 9. Dados iniciais dos times principais (Stellantis e Iveco)
 INSERT INTO public.teams (name) VALUES 
     ('Stellantis'),
     ('Iveco')
 ON CONFLICT (name) DO NOTHING;
+

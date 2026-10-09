@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { Header } from './components/Header';
 import { TimeOffForm } from './components/TimeOffForm';
 import { TimeOffList } from './components/TimeOffList';
+import { VacationForm } from './components/VacationForm';
+import { VacationList } from './components/VacationList';
 import { LoginPage } from './components/LoginPage';
 import { EmailReportsModal } from './components/EmailReportsModal';
 import { useEmployees } from './hooks/useEmployees';
 import { useTimeOffs } from './hooks/useTimeOffs';
+import { useVacations } from './hooks/useVacations';
 import { useTeams } from './hooks/useTeams';
 import { useReportRecipients } from './hooks/useReportRecipients';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -17,6 +20,7 @@ import { Database, Loader2, Eye } from 'lucide-react';
 function MainApp() {
   const { isAuthenticated, loading: authLoading, isAdmin, isReadOnly, user } = useAuth();
   const { showToast } = useToast();
+  const [activeView, setActiveView] = useState<'folgas' | 'ferias'>('folgas');
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   
   const { 
@@ -37,6 +41,15 @@ function MainApp() {
     deleteTimeOff, 
     checkConflicts 
   } = useTimeOffs();
+
+  const {
+    vacations,
+    loading: loadingVacations,
+    deletingId: deletingVacationId,
+    addVacation,
+    deleteVacation,
+    checkVacationConflicts,
+  } = useVacations();
 
   const {
     recipients,
@@ -61,7 +74,11 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
-      <Header onOpenEmailModal={() => setIsEmailModalOpen(true)} />
+      <Header
+        activeView={activeView}
+        onViewChange={setActiveView}
+        onOpenEmailModal={() => setIsEmailModalOpen(true)}
+      />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Banner instrutivo caso o Supabase ainda não tenha sido configurado no .env */}
@@ -103,37 +120,78 @@ function MainApp() {
                   Modo Consulta Ativo ({user?.username})
                 </h3>
                 <p className="text-xs text-amber-800/90 dark:text-amber-300/80 mt-0.5">
-                  Você possui permissão para consultar o quadro de folgas e exportar planilhas para o Excel. O cadastro e exclusão de folgas são restritos ao perfil <strong>AMS-ADM</strong>.
+                  {activeView === 'folgas'
+                    ? 'Você possui permissão para consultar o quadro de folgas e exportar planilhas para o Excel. O cadastro e exclusão de folgas são restritos ao perfil AMS-ADM.'
+                    : 'Você possui permissão para consultar a programação de férias e exportar planilhas para o Excel. O agendamento e exclusão de férias são restritos ao perfil AMS-ADM.'}
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Formulário de Cadastro Superior (Apenas Administrador) */}
-        {isAdmin && (
-          <TimeOffForm
-            employees={employees}
-            teams={teams}
-            loadingEmployees={loadingEmployees}
-            onAddEmployee={addEmployee}
-            onAddTimeOff={addTimeOff}
-            checkConflicts={checkConflicts}
-            onSuccessToast={(msg) => showToast(msg, 'success')}
-            onErrorToast={(msg) => showToast(msg, 'error')}
-          />
+        {/* ========================================= */}
+        {/* PÁGINA: QUADRO DE FOLGAS                 */}
+        {/* ========================================= */}
+        {activeView === 'folgas' && (
+          <div className="animate-in fade-in duration-200">
+            {/* Formulário de Cadastro Superior de Folgas (Apenas Administrador) */}
+            {isAdmin && (
+              <TimeOffForm
+                employees={employees}
+                teams={teams}
+                loadingEmployees={loadingEmployees}
+                onAddEmployee={addEmployee}
+                onAddTimeOff={addTimeOff}
+                checkConflicts={checkConflicts}
+                onSuccessToast={(msg) => showToast(msg, 'success')}
+                onErrorToast={(msg) => showToast(msg, 'error')}
+              />
+            )}
+
+            {/* Data Grid / Tabela Inferior de Folgas com Filtro por Time */}
+            <TimeOffList
+              timeOffs={timeOffs}
+              teams={teams}
+              loading={loadingTimeOffs}
+              deletingId={deletingId}
+              onDeleteTimeOff={deleteTimeOff}
+              onSuccessToast={(msg) => showToast(msg, 'success')}
+              onErrorToast={(msg) => showToast(msg, 'error')}
+            />
+          </div>
         )}
 
-        {/* Data Grid / Tabela Inferior de Folgas com Filtro por Time */}
-        <TimeOffList
-          timeOffs={timeOffs}
-          teams={teams}
-          loading={loadingTimeOffs}
-          deletingId={deletingId}
-          onDeleteTimeOff={deleteTimeOff}
-          onSuccessToast={(msg) => showToast(msg, 'success')}
-          onErrorToast={(msg) => showToast(msg, 'error')}
-        />
+        {/* ========================================= */}
+        {/* PÁGINA: PROGRAMAÇÃO DE FÉRIAS             */}
+        {/* ========================================= */}
+        {activeView === 'ferias' && (
+          <div className="animate-in fade-in duration-200">
+            {/* Formulário de Programação de Férias (Apenas Administrador) */}
+            {isAdmin && (
+              <VacationForm
+                employees={employees}
+                teams={teams}
+                loadingEmployees={loadingEmployees}
+                onAddEmployee={addEmployee}
+                onAddVacation={addVacation}
+                checkVacationConflicts={checkVacationConflicts}
+                onSuccessToast={(msg) => showToast(msg, 'success')}
+                onErrorToast={(msg) => showToast(msg, 'error')}
+              />
+            )}
+
+            {/* Data Grid / Tabela de Férias com Filtros e Exportação Excel */}
+            <VacationList
+              vacations={vacations}
+              teams={teams}
+              loading={loadingVacations}
+              deletingId={deletingVacationId}
+              onDeleteVacation={deleteVacation}
+              onSuccessToast={(msg) => showToast(msg, 'success')}
+              onErrorToast={(msg) => showToast(msg, 'error')}
+            />
+          </div>
+        )}
 
         {/* Modal de Configuração de Relatórios por E-mail (Apenas Administrador) */}
         {isAdmin && (
@@ -153,7 +211,7 @@ function MainApp() {
       </main>
 
       <footer className="py-6 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-center text-xs text-slate-400 dark:text-slate-500 transition-colors duration-200">
-        <p>Gestão de Folgas - Time AMS</p>
+        <p>Gestão de Folgas e Férias - Time AMS</p>
       </footer>
     </div>
   );

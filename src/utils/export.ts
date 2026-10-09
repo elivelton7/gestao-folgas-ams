@@ -1,4 +1,4 @@
-import type { TimeOffWithEmployee } from '../types/database';
+import type { TimeOffWithEmployee, VacationWithEmployee } from '../types/database';
 import { formatDateBR } from './date';
 
 /**
@@ -68,3 +68,40 @@ export function exportTableToExcel(data: TimeOffWithEmployee[], filenamePrefix: 
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Exporta a listagem de férias para CSV formatado com BOM UTF-8 e separadores ';' para Excel.
+ */
+export function exportVacationsToExcel(data: VacationWithEmployee[], filenamePrefix: string = 'ferias'): void {
+  if (!data || data.length === 0) return;
+
+  const headers = ['Colaborador', 'Time', 'Data de Início', 'Data de Retorno', 'Dias', 'Observação'];
+
+  const rows = data.map((item) => {
+    const colab = `"${(item.employees?.name || 'Não identificado').replace(/"/g, '""')}"`;
+    const time = `"${(item.employees?.teams?.name || 'Geral').replace(/"/g, '""')}"`;
+    const dataInicioFmt = formatDateBR(item.start_date);
+    const dataRetornoFmt = formatDateBR(item.return_date);
+    const dias = `${item.days} ${item.days === 1 ? 'dia' : 'dias'}`;
+    const obs = `"${(item.notes || '').replace(/"/g, '""')}"`;
+
+    return [colab, time, dataInicioFmt, dataRetornoFmt, dias, obs].join(';');
+  });
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${filenamePrefix}-${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
