@@ -10,10 +10,11 @@ import {
   Building2,
   FileSpreadsheet,
   Calendar,
-  Clock
+  Clock,
+  Sun
 } from 'lucide-react';
 import type { VacationWithEmployee, Team } from '../types/database';
-import { formatDateBR, isVacationUpcoming, isWithinPastFilter } from '../utils/date';
+import { formatDateBR, isVacationCurrent, isVacationUpcoming, isVacationPast, isWithinPastFilter } from '../utils/date';
 import type { PastDateFilter } from '../utils/date';
 import { exportVacationsToExcel } from '../utils/export';
 import { useAuth } from '../context/AuthContext';
@@ -28,7 +29,7 @@ interface VacationListProps {
   onErrorToast: (msg: string) => void;
 }
 
-type TabType = 'upcoming' | 'past';
+type TabType = 'current' | 'upcoming' | 'past';
 
 export const VacationList: React.FC<VacationListProps> = ({
   vacations,
@@ -40,20 +41,23 @@ export const VacationList: React.FC<VacationListProps> = ({
   onErrorToast,
 }) => {
   const { isReadOnly } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('upcoming');
+  const [activeTab, setActiveTab] = useState<TabType>('current');
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL');
   const [pastFilter, setPastFilter] = useState<PastDateFilter>('30d');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  // Filtra por data (próximas vs passadas com período) e por time selecionado
+  // Filtra por status das férias (em curso vs próximas vs passadas com período) e por time selecionado
   const filteredList = useMemo(() => {
     return vacations
       .filter((item) => {
-        // 1. Filtro de data
-        if (activeTab === 'upcoming') {
-          if (!isVacationUpcoming(item.return_date)) return false;
+        // 1. Filtro da aba selecionada
+        if (activeTab === 'current') {
+          if (!isVacationCurrent(item.start_date, item.return_date)) return false;
+        } else if (activeTab === 'upcoming') {
+          if (!isVacationUpcoming(item.start_date)) return false;
         } else {
           // Aba de férias passadas
+          if (!isVacationPast(item.return_date)) return false;
           if (!isWithinPastFilter(item.return_date, pastFilter)) return false;
         }
 
@@ -66,19 +70,28 @@ export const VacationList: React.FC<VacationListProps> = ({
         return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
       })
       .sort((a, b) => {
+        if (activeTab === 'current') {
+          // Em curso: ordena por quem volta primeiro
+          return a.return_date.localeCompare(b.return_date);
+        }
         return activeTab === 'upcoming'
           ? a.start_date.localeCompare(b.start_date)
           : b.return_date.localeCompare(a.return_date);
       });
   }, [vacations, activeTab, selectedTeamFilter, pastFilter]);
 
+  const currentCount = useMemo(
+    () => vacations.filter((item) => isVacationCurrent(item.start_date, item.return_date)).length,
+    [vacations]
+  );
+
   const upcomingCount = useMemo(
-    () => vacations.filter((item) => isVacationUpcoming(item.return_date)).length,
+    () => vacations.filter((item) => isVacationUpcoming(item.start_date)).length,
     [vacations]
   );
 
   const pastCount = useMemo(
-    () => vacations.filter((item) => !isVacationUpcoming(item.return_date)).length,
+    () => vacations.filter((item) => isVacationPast(item.return_date)).length,
     [vacations]
   );
 
@@ -98,7 +111,11 @@ export const VacationList: React.FC<VacationListProps> = ({
       return;
     }
 
-    const prefix = activeTab === 'upcoming' ? 'proximas-ferias' : `ferias-passadas-${pastFilter}`;
+    const prefix = activeTab === 'current'
+      ? 'ferias-em-curso'
+      : activeTab === 'upcoming'
+        ? 'proximas-ferias'
+        : `ferias-passadas-${pastFilter}`;
     exportVacationsToExcel(filteredList, prefix);
     onSuccessToast('Planilha de férias gerada com sucesso!');
   };
@@ -132,8 +149,31 @@ export const VacationList: React.FC<VacationListProps> = ({
 
         {/* Controles: Abas + Filtro de Período + Filtro de Time + Ícone do Excel */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Abas / Tabs para alternar entre Próximas e Passadas */}
+          {/* Abas / Tabs para alternar entre Em Curso, Próximas e Passadas */}
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+            {/* 1. Em Curso */}
+            <button
+              onClick={() => setActiveTab('current')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition ${
+                activeTab === 'current'
+                  ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Sun className="w-4 h-4 text-emerald-500" />
+              <span>Em Curso</span>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                  activeTab === 'current'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-slate-200 dark:bg-slate-750 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {currentCount}
+              </span>
+            </button>
+
+            {/* 2. Próximas */}
             <button
               onClick={() => setActiveTab('upcoming')}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition ${
@@ -155,6 +195,7 @@ export const VacationList: React.FC<VacationListProps> = ({
               </span>
             </button>
 
+            {/* 3. Passadas */}
             <button
               onClick={() => setActiveTab('past')}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition ${
@@ -245,15 +286,19 @@ export const VacationList: React.FC<VacationListProps> = ({
           </div>
           <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">
             {selectedTeamFilter !== 'ALL'
-              ? 'Nenhuma programação de férias encontrada para o time e período selecionados'
-              : activeTab === 'upcoming'
-                ? 'Nenhuma férias futura ou em andamento programada'
-                : 'Nenhum histórico de férias encontrado para o período selecionado'}
+              ? 'Nenhuma programação de férias encontrada para o time e visualização selecionados'
+              : activeTab === 'current'
+                ? 'Nenhum colaborador de férias atualmente'
+                : activeTab === 'upcoming'
+                  ? 'Nenhuma férias futura agendada'
+                  : 'Nenhum histórico de férias encontrado para o período selecionado'}
           </h3>
           <p className="text-sm text-slate-400 dark:text-slate-500 max-w-sm mt-1">
-            {activeTab === 'past'
-              ? 'Experimente alternar o filtro de período (ex: 90 Dias ou Ano Inteiro) ou selecionar "Todos os Times".'
-              : 'Utilize o formulário acima para programar as próximas férias da equipe.'}
+            {activeTab === 'current'
+              ? 'Toda a equipe está presente em atividade normal hoje.'
+              : activeTab === 'past'
+                ? 'Experimente alternar o filtro de período (ex: 90 Dias ou Ano Inteiro) ou selecionar "Todos os Times".'
+                : 'Utilize o formulário acima para programar as próximas férias da equipe.'}
           </p>
         </div>
       ) : (
@@ -326,10 +371,17 @@ export const VacationList: React.FC<VacationListProps> = ({
 
                     {/* Duração / Dias de Férias */}
                     <td className="py-4 px-6 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
-                        <Clock className="w-3.5 h-3.5 text-teal-500 dark:text-teal-400" />
-                        {item.days} {item.days === 1 ? 'dia' : 'dias'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
+                          <Clock className="w-3.5 h-3.5 text-teal-500 dark:text-teal-400" />
+                          {item.days} {item.days === 1 ? 'dia' : 'dias'}
+                        </span>
+                        {isVacationCurrent(item.start_date, item.return_date) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60">
+                            Em Curso
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Observação */}

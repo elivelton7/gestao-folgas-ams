@@ -90,10 +90,26 @@ export function calculateReturnDate(startDateString: string, daysCount: number):
 }
 
 /**
- * Férias são consideradas futuras ou em andamento se a data de retorno ainda não passou.
+ * Férias em curso: já iniciaram na data de hoje ou antes, e o colaborador ainda não retornou (hoje < data de volta).
  */
-export function isVacationUpcoming(returnDateString: string): boolean {
+export function isVacationCurrent(startDateString: string, returnDateString: string): boolean {
   const today = getTodayDateString();
-  return returnDateString >= today;
+  return startDateString <= today && today < returnDateString;
+}
+
+/**
+ * Férias futuras / próximas: a data de início ainda não chegou (start_date > hoje).
+ */
+export function isVacationUpcoming(startDateString: string): boolean {
+  const today = getTodayDateString();
+  return startDateString > today;
+}
+
+/**
+ * Férias passadas: o colaborador já retornou ao trabalho (return_date <= hoje).
+ */
+export function isVacationPast(returnDateString: string): boolean {
+  const today = getTodayDateString();
+  return returnDateString <= today;
 }
 
