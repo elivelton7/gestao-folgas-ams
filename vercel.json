@@ -1,4 +1,14 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron-report?frequency=DAILY",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron-report?frequency=WEEKLY",
+      "schedule": "0 11 * * 1"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

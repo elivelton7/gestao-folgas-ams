@@ -1,0 +1,16 @@
+name: Disparo Automatizado de Relatórios (TIME AMS)
+
+on:
+  schedule:
+    # 11:00 UTC = 08:00 BRT (Horário de Brasília) de Segunda a Sexta
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch: # Permite disparo manual via GitHub Actions
+
+jobs:
+  trigger-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Executar Disparo do Relatório Diário / Semanal
+        run: |
+          echo "Disparando relatório automatizado para endpoint de produção..."
+          curl -s -f -X GET "https://gestao-folgas-ams.vercel.app/api/cron-report" || echo "Aviso: Falha ao chamar endpoint ou app ainda inicializando."

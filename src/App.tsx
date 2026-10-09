@@ -204,6 +204,7 @@ function MainApp() {
             onToggleActive={toggleActive}
             onDeleteRecipient={deleteRecipient}
             timeOffs={timeOffs}
+            vacations={vacations}
             onSuccessToast={(msg) => showToast(msg, 'success')}
             onErrorToast={(msg) => showToast(msg, 'error')}
           />
