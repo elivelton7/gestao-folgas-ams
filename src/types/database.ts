@@ -25,6 +25,16 @@ export interface UpdateEmployeePayload {
   data_base_saldo?: string | null;
 }
 
+export interface MergeEmployeesPayload {
+  targetEmployeeId: string;
+  sourceEmployeeId: string;
+  finalName: string;
+  finalTeamId: string | null;
+  finalSaldoBaseMinutos: number | null;
+  finalSaldoBaseHoras: string | null;
+  finalDataBaseSaldo: string | null;
+}
+
 export interface TimeOff {
   id: string;
   employee_id: string;

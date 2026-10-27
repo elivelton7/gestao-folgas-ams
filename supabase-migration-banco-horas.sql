@@ -52,6 +52,18 @@ BEGIN
     ) THEN
         CREATE POLICY "Permitir exclusão de colaboradores" ON public.employees FOR DELETE TO anon, authenticated USING (true);
     END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'time_offs' AND policyname = 'Permitir atualização de folgas'
+    ) THEN
+        CREATE POLICY "Permitir atualização de folgas" ON public.time_offs FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'vacations' AND policyname = 'Permitir atualização de férias'
+    ) THEN
+        CREATE POLICY "Permitir atualização de férias" ON public.vacations FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+    END IF;
 END $$;
 
 -- 6. Permissões explícitas (GRANT ALL) para os roles do Supabase

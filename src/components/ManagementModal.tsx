@@ -18,14 +18,18 @@ import {
   ArrowRight,
   Info,
   UserPlus,
+  GitMerge,
+  Trash2,
 } from 'lucide-react';
 import type {
   Employee,
   Team,
   TimeOffWithEmployee,
+  VacationWithEmployee,
   UpdateEmployeePayload,
   CreateTeamPayload,
   CreateEmployeePayload,
+  MergeEmployeesPayload,
 } from '../types/database';
 import {
   calculateEmployeeBalance,
@@ -46,6 +50,7 @@ interface ManagementModalProps {
   employees: Employee[];
   teams: Team[];
   timeOffs: TimeOffWithEmployee[];
+  vacations: VacationWithEmployee[];
   onUpdateEmployee: (payload: UpdateEmployeePayload) => Promise<Employee>;
   onBulkUpdateBalances: (
     items: Array<{
@@ -56,6 +61,8 @@ interface ManagementModalProps {
       dataBaseSaldo: string;
     }>
   ) => Promise<number>;
+  onMergeEmployees: (payload: MergeEmployeesPayload) => Promise<Employee>;
+  onDeleteEmployee: (employeeId: string) => Promise<void>;
   onAddTeam: (payload: CreateTeamPayload) => Promise<Team>;
   onAddEmployee: (payload: CreateEmployeePayload) => Promise<Employee>;
   onSuccessToast: (msg: string) => void;
@@ -70,8 +77,11 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
   employees,
   teams,
   timeOffs,
+  vacations,
   onUpdateEmployee,
   onBulkUpdateBalances,
+  onMergeEmployees,
+  onDeleteEmployee,
   onAddTeam,
   onAddEmployee,
   onSuccessToast,
@@ -97,6 +107,17 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
   const [newEmpName, setNewEmpName] = useState('');
   const [newEmpTeamId, setNewEmpTeamId] = useState('');
   const [isCreatingEmp, setIsCreatingEmp] = useState(false);
+
+  // Estados de Unificação (Merge) de Colaboradores Duplicados
+  const [showMergePanel, setShowMergePanel] = useState(false);
+  const [mergeEmpAId, setMergeEmpAId] = useState<string>('');
+  const [mergeEmpBId, setMergeEmpBId] = useState<string>('');
+  const [mergeFinalName, setMergeFinalName] = useState<string>('');
+  const [mergeFinalTeamId, setMergeFinalTeamId] = useState<string>('');
+  const [mergeFinalHHMM, setMergeFinalHHMM] = useState<string>('00:00');
+  const [mergeFinalBaseDate, setMergeFinalBaseDate] = useState<string>('');
+  const [isMerging, setIsMerging] = useState(false);
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
 
   // Cadastro de nova equipe
   const [newTeamName, setNewTeamName] = useState('');
@@ -199,6 +220,207 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
       onErrorToast(err.message || 'Erro ao atualizar colaborador.');
     } finally {
       setIsSavingEmployee(false);
+    }
+  };
+
+  const getEmpMinutes = (emp?: Employee | null): number => {
+    if (!emp) return 0;
+    if (emp.saldo_base_minutos !== null && emp.saldo_base_minutos !== undefined) {
+      return Number(emp.saldo_base_minutos);
+    }
+    if (emp.saldo_base_horas) {
+      return hhmmToMinutes(emp.saldo_base_horas);
+    }
+    return 0;
+  };
+
+  const applySmartMergeDefaults = (empA?: Employee | null, empB?: Employee | null) => {
+    if (!empA && !empB) return;
+    if (empA && !empB) {
+      setMergeFinalName(empA.name);
+      setMergeFinalTeamId(empA.team_id || empA.teams?.id || '');
+      setMergeFinalHHMM(minutesToHHMM(getEmpMinutes(empA)));
+      setMergeFinalBaseDate(empA.data_base_saldo || getTodayDateString());
+      return;
+    }
+    if (!empA && empB) {
+      setMergeFinalName(empB.name);
+      setMergeFinalTeamId(empB.team_id || empB.teams?.id || '');
+      setMergeFinalHHMM(minutesToHHMM(getEmpMinutes(empB)));
+      setMergeFinalBaseDate(empB.data_base_saldo || getTodayDateString());
+      return;
+    }
+
+    if (empA && empB) {
+      // 1. Nome: prioriza o nome mais completo (ex: o que veio da planilha do RH)
+      const bestName =
+        empB.name.trim().length > empA.name.trim().length ? empB.name.trim() : empA.name.trim();
+      setMergeFinalName(bestName);
+
+      // 2. Equipe: prioriza o cadastro que já possui equipe vinculada
+      const teamA = empA.team_id || empA.teams?.id || '';
+      const teamB = empB.team_id || empB.teams?.id || '';
+      setMergeFinalTeamId(teamA || teamB || '');
+
+      // 3. Saldo Base e Data-Base: prioriza o registro que possui data_base_saldo (importado da planilha) ou saldo != 0
+      const minsA = getEmpMinutes(empA);
+      const minsB = getEmpMinutes(empB);
+      const hasBalA = Boolean(empA.data_base_saldo) || minsA !== 0;
+      const hasBalB = Boolean(empB.data_base_saldo) || minsB !== 0;
+
+      if (hasBalB && !hasBalA) {
+        setMergeFinalHHMM(minutesToHHMM(minsB));
+        setMergeFinalBaseDate(empB.data_base_saldo || getTodayDateString());
+      } else if (hasBalA && !hasBalB) {
+        setMergeFinalHHMM(minutesToHHMM(minsA));
+        setMergeFinalBaseDate(empA.data_base_saldo || getTodayDateString());
+      } else if (empB.data_base_saldo && empA.data_base_saldo) {
+        // Ambos possuem data-base: usa o de data-base mais recente
+        if (empB.data_base_saldo >= empA.data_base_saldo) {
+          setMergeFinalHHMM(minutesToHHMM(minsB));
+          setMergeFinalBaseDate(empB.data_base_saldo);
+        } else {
+          setMergeFinalHHMM(minutesToHHMM(minsA));
+          setMergeFinalBaseDate(empA.data_base_saldo);
+        }
+      } else {
+        setMergeFinalHHMM(minutesToHHMM(minsA !== 0 ? minsA : minsB));
+        setMergeFinalBaseDate(
+          empA.data_base_saldo || empB.data_base_saldo || getTodayDateString()
+        );
+      }
+    }
+  };
+
+  const findLikelyDuplicate = (target: Employee): Employee | undefined => {
+    const norm = (s: string) =>
+      s
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    const targetNorm = norm(target.name);
+    const targetFirstWord = targetNorm.split(/\s+/)[0];
+
+    return employees.find((other) => {
+      if (other.id === target.id) return false;
+      const otherNorm = norm(other.name);
+      const otherFirstWord = otherNorm.split(/\s+/)[0];
+      return (
+        otherNorm.includes(targetNorm) ||
+        targetNorm.includes(otherNorm) ||
+        (targetFirstWord.length >= 3 && targetFirstWord === otherFirstWord)
+      );
+    });
+  };
+
+  const openMergeForEmployee = (emp: Employee) => {
+    const likelyDup = findLikelyDuplicate(emp) || null;
+    setMergeEmpAId(emp.id);
+    setMergeEmpBId(likelyDup ? likelyDup.id : '');
+    applySmartMergeDefaults(emp, likelyDup);
+    setShowNewEmpForm(false);
+    setShowMergePanel(true);
+  };
+
+  const handleSelectMergeA = (id: string) => {
+    setMergeEmpAId(id);
+    const empA = employees.find((e) => e.id === id) || null;
+    const empB = employees.find((e) => e.id === mergeEmpBId) || null;
+    applySmartMergeDefaults(empA, empB);
+  };
+
+  const handleSelectMergeB = (id: string) => {
+    setMergeEmpBId(id);
+    const empA = employees.find((e) => e.id === mergeEmpAId) || null;
+    const empB = employees.find((e) => e.id === id) || null;
+    applySmartMergeDefaults(empA, empB);
+  };
+
+  const handleExecuteMerge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mergeEmpAId || !mergeEmpBId || mergeEmpAId === mergeEmpBId) {
+      onErrorToast('Selecione dois cadastros diferentes para unificar.');
+      return;
+    }
+    if (!mergeFinalName.trim()) {
+      onErrorToast('Informe o nome oficial que deverá permanecer no cadastro.');
+      return;
+    }
+    const trimmedHHMM = mergeFinalHHMM.trim() || '00:00';
+    if (!isValidHHMM(trimmedHHMM)) {
+      onErrorToast('Formato de saldo inválido. Use o padrão HH:MM (ex: 20:00 ou -02:30).');
+      return;
+    }
+
+    const empA = employees.find((emp) => emp.id === mergeEmpAId);
+    const empB = employees.find((emp) => emp.id === mergeEmpBId);
+    if (!empA || !empB) {
+      onErrorToast('Colaboradores selecionados não encontrados.');
+      return;
+    }
+
+    // Escolhe como target (registro sobrevivente) aquele que já possui mais vínculos de folgas/férias
+    const countHistoryA =
+      timeOffs.filter((t) => t.employee_id === empA.id).length +
+      vacations.filter((v) => v.employee_id === empA.id).length;
+    const countHistoryB =
+      timeOffs.filter((t) => t.employee_id === empB.id).length +
+      vacations.filter((v) => v.employee_id === empB.id).length;
+
+    const targetEmployeeId = countHistoryB > countHistoryA ? empB.id : empA.id;
+    const sourceEmployeeId = targetEmployeeId === empA.id ? empB.id : empA.id;
+
+    const finalMinutes = hhmmToMinutes(trimmedHHMM);
+    const finalHHMM = minutesToHHMM(finalMinutes);
+
+    try {
+      setIsMerging(true);
+      await onMergeEmployees({
+        targetEmployeeId,
+        sourceEmployeeId,
+        finalName: mergeFinalName.trim(),
+        finalTeamId: mergeFinalTeamId || null,
+        finalSaldoBaseMinutos: finalMinutes,
+        finalSaldoBaseHoras: finalHHMM,
+        finalDataBaseSaldo: mergeFinalBaseDate || null,
+      });
+
+      onSuccessToast(
+        `Cadastros "${empA.name}" e "${empB.name}" unificados com sucesso como "${mergeFinalName.trim()}"!`
+      );
+      setShowMergePanel(false);
+      setMergeEmpAId('');
+      setMergeEmpBId('');
+    } catch (err: any) {
+      onErrorToast(err.message || 'Erro ao unificar cadastros.');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const handleDeleteEmployeeClick = async (emp: Employee) => {
+    const empTimeOffCount = timeOffs.filter((t) => t.employee_id === emp.id).length;
+    const empVacationCount = vacations.filter((v) => v.employee_id === emp.id).length;
+
+    const warningDetails =
+      empTimeOffCount > 0 || empVacationCount > 0
+        ? `\n\nAtenção: Este cadastro possui ${empTimeOffCount} folga(s) e ${empVacationCount} férias vinculadas (que também serão apagadas). Se desejar preservar o histórico, utilize o botão "Unificar".`
+        : '';
+
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir o colaborador "${emp.name}"?${warningDetails}`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingEmployeeId(emp.id);
+      await onDeleteEmployee(emp.id);
+      onSuccessToast(`Colaborador "${emp.name}" removido com sucesso.`);
+    } catch (err: any) {
+      onErrorToast(err.message || 'Erro ao remover colaborador.');
+    } finally {
+      setDeletingEmployeeId(null);
     }
   };
 
@@ -514,10 +736,29 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
                   </span>
                 </div>
                 {!isReadOnly && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowNewEmpForm((prev) => !prev)}
+                      onClick={() => {
+                        setShowMergePanel((prev) => !prev);
+                        setShowNewEmpForm(false);
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-semibold transition shadow-2xs ${
+                        showMergePanel
+                          ? 'bg-amber-600 text-white border-amber-600'
+                          : 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                      }`}
+                      title="Unificar um colaborador importado da planilha com um cadastro que já existia"
+                    >
+                      <GitMerge className="w-3.5 h-3.5" />
+                      Unificar Duplicados
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewEmpForm((prev) => !prev);
+                        setShowMergePanel(false);
+                      }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 font-semibold hover:bg-indigo-100/60 transition shadow-2xs"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -534,6 +775,257 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Painel de Unificação (Merge) de Colaboradores Duplicados */}
+              {showMergePanel && !isReadOnly && (
+                <form
+                  onSubmit={handleExecuteMerge}
+                  className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/25 border-2 border-amber-300/80 dark:border-amber-800/70 space-y-4 animate-in fade-in"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300">
+                        <GitMerge className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-amber-950 dark:text-amber-100">
+                          Unificar / Equalizar Colaboradores Duplicados
+                        </h3>
+                        <p className="text-xs text-amber-800 dark:text-amber-300/90">
+                          Selecione o cadastro que já existia e o que veio da planilha. O sistema unificará todas as <strong>folgas</strong>, <strong>férias</strong>, <strong>equipe</strong> e <strong>saldo</strong> em um único registro e removerá a duplicidade.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMergePanel(false)}
+                      className="text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 p-1.5 rounded-lg transition"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Seleção dos 2 cadastros */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                        1º Cadastro (Ex: Já existente ou da Planilha) *
+                      </label>
+                      <select
+                        value={mergeEmpAId}
+                        onChange={(e) => handleSelectMergeA(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
+                        required
+                      >
+                        <option value="">-- Selecione o 1º colaborador --</option>
+                        {employees.map((e) => {
+                          const toCount = timeOffs.filter((t) => t.employee_id === e.id).length;
+                          const vacCount = vacations.filter((v) => v.employee_id === e.id).length;
+                          const bal = minutesToHHMM(getEmpMinutes(e));
+                          const tName = getTeamName(e);
+                          return (
+                            <option key={e.id} value={e.id} disabled={e.id === mergeEmpBId}>
+                              {e.name} {tName ? `[${tName}]` : ''} — Saldo Base: {bal}h | {toCount} folga(s), {vacCount} férias
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                        2º Cadastro (Duplicado da mesma pessoa) *
+                      </label>
+                      <select
+                        value={mergeEmpBId}
+                        onChange={(e) => handleSelectMergeB(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
+                        required
+                      >
+                        <option value="">-- Selecione o 2º colaborador --</option>
+                        {employees.map((e) => {
+                          const toCount = timeOffs.filter((t) => t.employee_id === e.id).length;
+                          const vacCount = vacations.filter((v) => v.employee_id === e.id).length;
+                          const bal = minutesToHHMM(getEmpMinutes(e));
+                          const tName = getTeamName(e);
+                          return (
+                            <option key={e.id} value={e.id} disabled={e.id === mergeEmpAId}>
+                              {e.name} {tName ? `[${tName}]` : ''} — Saldo Base: {bal}h | {toCount} folga(s), {vacCount} férias
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Configuração do Cadastro Unificado Final + Prévia */}
+                  {mergeEmpAId && mergeEmpBId && mergeEmpAId !== mergeEmpBId && (() => {
+                    const empA = employees.find((e) => e.id === mergeEmpAId);
+                    const empB = employees.find((e) => e.id === mergeEmpBId);
+                    if (!empA || !empB) return null;
+
+                    const combinedTimeOffs = timeOffs
+                      .filter((t) => t.employee_id === empA.id || t.employee_id === empB.id)
+                      .map((t) => ({ ...t, employee_id: empA.id }));
+
+                    const totalVacations = vacations.filter(
+                      (v) => v.employee_id === empA.id || v.employee_id === empB.id
+                    ).length;
+
+                    const previewMinutes = isValidHHMM(mergeFinalHHMM.trim() || '00:00')
+                      ? hhmmToMinutes(mergeFinalHHMM.trim() || '00:00')
+                      : 0;
+
+                    const previewSummary = calculateEmployeeBalance(
+                      {
+                        ...empA,
+                        name: mergeFinalName,
+                        saldo_base_minutos: previewMinutes,
+                        saldo_base_horas: minutesToHHMM(previewMinutes),
+                        data_base_saldo: mergeFinalBaseDate || null,
+                      },
+                      combinedTimeOffs
+                    );
+
+                    return (
+                      <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/80 space-y-4">
+                        <div className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          Dados Consolidados que permanecerão após unificar:
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {/* Nome Oficial */}
+                          <div className="sm:col-span-2 lg:col-span-1">
+                            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Nome Oficial (Equalizado) *
+                            </label>
+                            <input
+                              type="text"
+                              value={mergeFinalName}
+                              onChange={(e) => setMergeFinalName(e.target.value)}
+                              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
+                              required
+                            />
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setMergeFinalName(empA.name)}
+                                className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                              >
+                                Usar &quot;{empA.name}&quot;
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setMergeFinalName(empB.name)}
+                                className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                              >
+                                Usar &quot;{empB.name}&quot;
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Equipe */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Equipe Vinculada
+                            </label>
+                            <select
+                              value={mergeFinalTeamId}
+                              onChange={(e) => setMergeFinalTeamId(e.target.value)}
+                              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                            >
+                              <option value="">Sem equipe</option>
+                              {teams.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Saldo Base RH */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Saldo Base RH (HH:MM)
+                            </label>
+                            <input
+                              type="text"
+                              value={mergeFinalHHMM}
+                              onChange={(e) => setMergeFinalHHMM(e.target.value)}
+                              className="w-full px-3 py-1.5 text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+                            />
+                          </div>
+
+                          {/* Data-Base do Saldo */}
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Data-Base do Saldo
+                            </label>
+                            <input
+                              type="date"
+                              value={mergeFinalBaseDate}
+                              onChange={(e) => setMergeFinalBaseDate(e.target.value)}
+                              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Resumo do Histórico e Novo Saldo Hoje Projetado */}
+                        <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex flex-wrap items-center gap-4 text-emerald-950 dark:text-emerald-200">
+                            <span>
+                              📅 <strong>Histórico Somado:</strong> {combinedTimeOffs.length} folga(s) e {totalVacations} férias serão mantidas
+                            </span>
+                            <span>
+                              ⏱️ <strong>Folgas Pós Data-Base:</strong>{' '}
+                              <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
+                                {previewSummary.deductedMinutesAfterBase > 0
+                                  ? `${previewSummary.deductedHHMM}h`
+                                  : '00:00'}
+                              </span>
+                            </span>
+                            <span>
+                              ✅ <strong>Saldo Hoje Recalculado:</strong>{' '}
+                              <span
+                                className={`font-mono font-bold px-2 py-0.5 rounded-md ${
+                                  previewSummary.currentBalanceMinutes < 0
+                                    ? 'bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-200'
+                                    : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
+                                }`}
+                              >
+                                {previewSummary.currentBalanceHHMM}h
+                              </span>
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-auto">
+                            <button
+                              type="button"
+                              onClick={() => setShowMergePanel(false)}
+                              className="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={isMerging}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-xs transition disabled:opacity-50"
+                            >
+                              {isMerging ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <GitMerge className="w-3.5 h-3.5" />
+                              )}
+                              Confirmar Unificação
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </form>
+              )}
 
               {/* Mini-formulário expansível para novo colaborador */}
               {showNewEmpForm && !isReadOnly && (
@@ -812,15 +1304,39 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
                                       </button>
                                     </div>
                                   ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => startEditingEmployee(employee)}
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition"
-                                      title="Editar nome, equipe, saldo base ou data-base"
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5" />
-                                      <span>Editar</span>
-                                    </button>
+                                    <div className="flex items-center justify-end gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => startEditingEmployee(employee)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition"
+                                        title="Editar nome, equipe, saldo base ou data-base"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                        <span>Editar</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openMergeForEmployee(employee)}
+                                        className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition"
+                                        title="Unificar com outro cadastro duplicado da mesma pessoa"
+                                      >
+                                        <GitMerge className="w-3.5 h-3.5" />
+                                        <span className="hidden xl:inline">Unificar</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteEmployeeClick(employee)}
+                                        disabled={deletingEmployeeId === employee.id}
+                                        className="inline-flex items-center justify-center p-1.5 text-xs font-semibold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition disabled:opacity-50"
+                                        title="Excluir colaborador"
+                                      >
+                                        {deletingEmployeeId === employee.id ? (
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        )}
+                                      </button>
+                                    </div>
                                   )}
                                 </td>
                               )}

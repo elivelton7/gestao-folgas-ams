@@ -103,6 +103,9 @@ ON public.time_offs FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Permitir inserção de folgas" 
 ON public.time_offs FOR INSERT TO anon, authenticated WITH CHECK (true);
 
+CREATE POLICY "Permitir atualização de folgas" 
+ON public.time_offs FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
 CREATE POLICY "Permitir exclusão de folgas" 
 ON public.time_offs FOR DELETE TO anon, authenticated USING (true);
 
@@ -141,6 +144,9 @@ ON public.vacations FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "Permitir inserção de férias" 
 ON public.vacations FOR INSERT TO anon, authenticated WITH CHECK (true);
+
+CREATE POLICY "Permitir atualização de férias" 
+ON public.vacations FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "Permitir exclusão de férias" 
 ON public.vacations FOR DELETE TO anon, authenticated USING (true);

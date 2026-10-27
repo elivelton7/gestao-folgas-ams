@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import type { Employee, CreateEmployeePayload, UpdateEmployeePayload } from '../types/database';
+import type {
+  Employee,
+  CreateEmployeePayload,
+  UpdateEmployeePayload,
+  MergeEmployeesPayload,
+} from '../types/database';
 
 const LOCAL_BALANCE_BACKUP_KEY = 'gestao-folgas-employees-balance-backup';
 
@@ -11,6 +16,7 @@ interface LocalEmployeeOverlay {
   saldo_base_horas?: string | null;
   data_base_saldo?: string | null;
   updated_at?: string | null;
+  deleted?: boolean;
 }
 
 const loadLocalOverlays = (): Record<string, LocalEmployeeOverlay> => {
@@ -43,21 +49,23 @@ export function useEmployees() {
 
   const mergeWithLocalOverlay = (list: Employee[]): Employee[] => {
     const overlays = loadLocalOverlays();
-    return list.map((emp) => {
-      const ov = overlays[emp.id];
-      if (!ov) return emp;
-      return {
-        ...emp,
-        name: ov.name ? ov.name : emp.name,
-        saldo_base_minutos:
-          emp.saldo_base_minutos !== undefined && emp.saldo_base_minutos !== null
-            ? emp.saldo_base_minutos
-            : (ov.saldo_base_minutos ?? null),
-        saldo_base_horas: emp.saldo_base_horas ?? ov.saldo_base_horas ?? null,
-        data_base_saldo: emp.data_base_saldo ?? ov.data_base_saldo ?? null,
-        updated_at: emp.updated_at ?? ov.updated_at ?? null,
-      };
-    });
+    return list
+      .filter((emp) => !overlays[emp.id]?.deleted)
+      .map((emp) => {
+        const ov = overlays[emp.id];
+        if (!ov) return emp;
+        return {
+          ...emp,
+          name: ov.name ? ov.name : emp.name,
+          saldo_base_minutos:
+            emp.saldo_base_minutos !== undefined && emp.saldo_base_minutos !== null
+              ? emp.saldo_base_minutos
+              : (ov.saldo_base_minutos ?? null),
+          saldo_base_horas: emp.saldo_base_horas ?? ov.saldo_base_horas ?? null,
+          data_base_saldo: emp.data_base_saldo ?? ov.data_base_saldo ?? null,
+          updated_at: emp.updated_at ?? ov.updated_at ?? null,
+        };
+      });
   };
 
   const fetchEmployees = useCallback(async () => {
@@ -430,6 +438,137 @@ export function useEmployees() {
     return items.length;
   };
 
+  /**
+   * Exclui um colaborador cadastrado
+   */
+  const deleteEmployee = async (employeeId: string): Promise<void> => {
+    const overlays = loadLocalOverlays();
+    overlays[employeeId] = {
+      ...overlays[employeeId],
+      deleted: true,
+    };
+    saveLocalOverlays(overlays);
+
+    if (isSupabaseConfigured) {
+      await supabase.from('employees').delete().eq('id', employeeId);
+    }
+
+    setEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
+  };
+
+  /**
+   * Unifica (Merge) dois colaboradores duplicados:
+   * 1. Transfere todas as folgas (time_offs) e férias (vacations) de sourceEmployeeId para targetEmployeeId
+   * 2. Atualiza targetEmployeeId com o nome oficial, equipe, saldo base e data-base consolidados
+   * 3. Exclui o registro duplicado (sourceEmployeeId)
+   */
+  const mergeEmployees = async (payload: MergeEmployeesPayload): Promise<Employee> => {
+    const {
+      targetEmployeeId,
+      sourceEmployeeId,
+      finalName,
+      finalTeamId,
+      finalSaldoBaseMinutos,
+      finalSaldoBaseHoras,
+      finalDataBaseSaldo,
+    } = payload;
+
+    if (!targetEmployeeId || !sourceEmployeeId || targetEmployeeId === sourceEmployeeId) {
+      throw new Error('Selecione dois cadastros diferentes para unificar.');
+    }
+
+    if (isSupabaseConfigured) {
+      // 1. Transferir Folgas (time_offs) do cadastro duplicado para o principal
+      const { data: sourceTimeOffs } = await supabase
+        .from('time_offs')
+        .select('id, date, description, is_full_day, hours')
+        .eq('employee_id', sourceEmployeeId);
+
+      if (sourceTimeOffs && sourceTimeOffs.length > 0) {
+        const { data: updatedTimeOffs, error: updateToErr } = await supabase
+          .from('time_offs')
+          .update({ employee_id: targetEmployeeId })
+          .eq('employee_id', sourceEmployeeId)
+          .select('id');
+
+        // Fallback seguro (INSERT + DELETE) caso a policy de UPDATE em time_offs ainda não tenha sido aplicada
+        if (updateToErr || !updatedTimeOffs || updatedTimeOffs.length === 0) {
+          const clonedTimeOffs = sourceTimeOffs.map((to) => ({
+            employee_id: targetEmployeeId,
+            date: to.date,
+            description: to.description,
+            is_full_day: to.is_full_day,
+            hours: to.hours,
+          }));
+          const { error: insertCloneErr } = await supabase
+            .from('time_offs')
+            .insert(clonedTimeOffs);
+          if (!insertCloneErr) {
+            await supabase
+              .from('time_offs')
+              .delete()
+              .in(
+                'id',
+                sourceTimeOffs.map((to) => to.id)
+              );
+          }
+        }
+      }
+
+      // 2. Transferir Férias (vacations) do cadastro duplicado para o principal
+      const { data: sourceVacations } = await supabase
+        .from('vacations')
+        .select('id, start_date, return_date, days, notes')
+        .eq('employee_id', sourceEmployeeId);
+
+      if (sourceVacations && sourceVacations.length > 0) {
+        const { data: updatedVacations, error: updateVacErr } = await supabase
+          .from('vacations')
+          .update({ employee_id: targetEmployeeId })
+          .eq('employee_id', sourceEmployeeId)
+          .select('id');
+
+        // Fallback seguro (INSERT + DELETE) caso a policy de UPDATE em vacations ainda não tenha sido aplicada
+        if (updateVacErr || !updatedVacations || updatedVacations.length === 0) {
+          const clonedVacations = sourceVacations.map((vac) => ({
+            employee_id: targetEmployeeId,
+            start_date: vac.start_date,
+            return_date: vac.return_date,
+            days: vac.days,
+            notes: vac.notes,
+          }));
+          const { error: insertVacCloneErr } = await supabase
+            .from('vacations')
+            .insert(clonedVacations);
+          if (!insertVacCloneErr) {
+            await supabase
+              .from('vacations')
+              .delete()
+              .in(
+                'id',
+                sourceVacations.map((v) => v.id)
+              );
+          }
+        }
+      }
+    }
+
+    // 3. Atualizar o colaborador principal (target) com os dados consolidados
+    const updatedTarget = await updateEmployee({
+      id: targetEmployeeId,
+      name: finalName.trim(),
+      team_id: finalTeamId,
+      saldo_base_minutos: finalSaldoBaseMinutos,
+      saldo_base_horas: finalSaldoBaseHoras,
+      data_base_saldo: finalDataBaseSaldo,
+    });
+
+    // 4. Excluir o colaborador duplicado (source)
+    await deleteEmployee(sourceEmployeeId);
+
+    return updatedTarget;
+  };
+
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
@@ -442,5 +581,7 @@ export function useEmployees() {
     addEmployee,
     updateEmployee,
     bulkUpdateBalances,
+    deleteEmployee,
+    mergeEmployees,
   };
 }

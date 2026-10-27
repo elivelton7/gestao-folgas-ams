@@ -17,7 +17,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database, Loader2, Eye } from 'lucide-react';
-import type { UpdateEmployeePayload } from './types/database';
+import type { UpdateEmployeePayload, MergeEmployeesPayload } from './types/database';
 
 function MainApp() {
   const { isAuthenticated, loading: authLoading, isAdmin, isReadOnly, user } = useAuth();
@@ -34,6 +34,8 @@ function MainApp() {
     addEmployee,
     updateEmployee,
     bulkUpdateBalances,
+    deleteEmployee,
+    mergeEmployees,
   } = useEmployees();
 
   const {
@@ -88,6 +90,19 @@ function MainApp() {
     refreshTimeOffs();
     refreshVacations();
     return count;
+  };
+
+  const handleMergeEmployees = async (payload: MergeEmployeesPayload) => {
+    const merged = await mergeEmployees(payload);
+    refreshTimeOffs();
+    refreshVacations();
+    return merged;
+  };
+
+  const handleDeleteEmployee = async (employeeId: string) => {
+    await deleteEmployee(employeeId);
+    refreshTimeOffs();
+    refreshVacations();
   };
 
   if (authLoading) {
@@ -234,8 +249,11 @@ function MainApp() {
           employees={employees}
           teams={teams}
           timeOffs={timeOffs}
+          vacations={vacations}
           onUpdateEmployee={handleUpdateEmployee}
           onBulkUpdateBalances={handleBulkUpdateBalances}
+          onMergeEmployees={handleMergeEmployees}
+          onDeleteEmployee={handleDeleteEmployee}
           onAddTeam={addTeam}
           onAddEmployee={addEmployee}
           onSuccessToast={(msg) => showToast(msg, 'success')}
