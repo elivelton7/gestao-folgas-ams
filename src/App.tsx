@@ -6,6 +6,7 @@ import { VacationForm } from './components/VacationForm';
 import { VacationList } from './components/VacationList';
 import { LoginPage } from './components/LoginPage';
 import { EmailReportsModal } from './components/EmailReportsModal';
+import { ManagementModal } from './components/ManagementModal';
 import { useEmployees } from './hooks/useEmployees';
 import { useTimeOffs } from './hooks/useTimeOffs';
 import { useVacations } from './hooks/useVacations';
@@ -16,30 +17,33 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database, Loader2, Eye } from 'lucide-react';
+import type { UpdateEmployeePayload } from './types/database';
 
 function MainApp() {
   const { isAuthenticated, loading: authLoading, isAdmin, isReadOnly, user } = useAuth();
   const { showToast } = useToast();
   const [activeView, setActiveView] = useState<'folgas' | 'ferias'>('folgas');
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  
-  const { 
-    teams 
-  } = useTeams();
+  const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
 
-  const { 
-    employees, 
-    loading: loadingEmployees, 
-    addEmployee 
+  const { teams, addTeam } = useTeams();
+
+  const {
+    employees,
+    loading: loadingEmployees,
+    addEmployee,
+    updateEmployee,
+    bulkUpdateBalances,
   } = useEmployees();
 
-  const { 
-    timeOffs, 
-    loading: loadingTimeOffs, 
-    deletingId, 
-    addTimeOff, 
-    deleteTimeOff, 
-    checkConflicts 
+  const {
+    timeOffs,
+    loading: loadingTimeOffs,
+    deletingId,
+    addTimeOff,
+    deleteTimeOff,
+    checkConflicts,
+    refreshTimeOffs,
   } = useTimeOffs();
 
   const {
@@ -49,6 +53,7 @@ function MainApp() {
     addVacation,
     deleteVacation,
     checkVacationConflicts,
+    refreshVacations,
   } = useVacations();
 
   const {
@@ -58,6 +63,32 @@ function MainApp() {
     toggleActive,
     deleteRecipient,
   } = useReportRecipients();
+
+  const handleUpdateEmployee = async (payload: UpdateEmployeePayload) => {
+    const updated = await updateEmployee(payload);
+    // Caso nome ou time tenha mudado, sincroniza listas de folgas e férias
+    if (payload.name !== undefined || payload.team_id !== undefined) {
+      refreshTimeOffs();
+      refreshVacations();
+    }
+    return updated;
+  };
+
+  const handleBulkUpdateBalances = async (
+    items: Array<{
+      employeeId: string;
+      newName?: string;
+      saldoBaseMinutos: number;
+      saldoBaseHoras: string;
+      dataBaseSaldo: string;
+    }>
+  ) => {
+    const count = await bulkUpdateBalances(items);
+    // Sincroniza listas de folgas e férias para refletir os nomes equalizados com a planilha
+    refreshTimeOffs();
+    refreshVacations();
+    return count;
+  };
 
   if (authLoading) {
     return (
@@ -78,6 +109,7 @@ function MainApp() {
         activeView={activeView}
         onViewChange={setActiveView}
         onOpenEmailModal={() => setIsEmailModalOpen(true)}
+        onOpenManagementModal={() => setIsManagementModalOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -101,7 +133,8 @@ function MainApp() {
                   <code className="bg-amber-100/80 dark:bg-amber-900/60 px-1.5 py-0.5 rounded font-mono text-xs font-semibold">
                     .env
                   </code>{' '}
-                  (<code className="text-xs font-mono">VITE_SUPABASE_URL</code> e <code className="text-xs font-mono">VITE_SUPABASE_ANON_KEY</code>).
+                  (<code className="text-xs font-mono">VITE_SUPABASE_URL</code> e{' '}
+                  <code className="text-xs font-mono">VITE_SUPABASE_ANON_KEY</code>).
                 </p>
               </div>
             </div>
@@ -121,7 +154,7 @@ function MainApp() {
                 </h3>
                 <p className="text-xs text-amber-800/90 dark:text-amber-300/80 mt-0.5">
                   {activeView === 'folgas'
-                    ? 'Você possui permissão para consultar o quadro de folgas e exportar planilhas para o Excel. O cadastro e exclusão de folgas são restritos ao perfil AMS-ADM.'
+                    ? 'Você possui permissão para consultar o quadro de folgas, saldos e exportar planilhas para o Excel. O cadastro e exclusão são restritos ao perfil AMS-ADM.'
                     : 'Você possui permissão para consultar a programação de férias e exportar planilhas para o Excel. O agendamento e exclusão de férias são restritos ao perfil AMS-ADM.'}
                 </p>
               </div>
@@ -148,10 +181,11 @@ function MainApp() {
               />
             )}
 
-            {/* Data Grid / Tabela Inferior de Folgas com Filtro por Time */}
+            {/* Data Grid / Tabela Inferior de Folgas com Filtro por Time e Saldo Hoje */}
             <TimeOffList
               timeOffs={timeOffs}
               teams={teams}
+              employees={employees}
               loading={loadingTimeOffs}
               deletingId={deletingId}
               onDeleteTimeOff={deleteTimeOff}
@@ -193,6 +227,21 @@ function MainApp() {
           </div>
         )}
 
+        {/* Modal de Gestão de Equipes, Colaboradores e Banco de Horas */}
+        <ManagementModal
+          isOpen={isManagementModalOpen}
+          onClose={() => setIsManagementModalOpen(false)}
+          employees={employees}
+          teams={teams}
+          timeOffs={timeOffs}
+          onUpdateEmployee={handleUpdateEmployee}
+          onBulkUpdateBalances={handleBulkUpdateBalances}
+          onAddTeam={addTeam}
+          onAddEmployee={addEmployee}
+          onSuccessToast={(msg) => showToast(msg, 'success')}
+          onErrorToast={(msg) => showToast(msg, 'error')}
+        />
+
         {/* Modal de Configuração de Relatórios por E-mail (Apenas Administrador) */}
         {isAdmin && (
           <EmailReportsModal
@@ -212,7 +261,7 @@ function MainApp() {
       </main>
 
       <footer className="py-6 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-center text-xs text-slate-400 dark:text-slate-500 transition-colors duration-200">
-        <p>Gestão de Folgas e Férias - Time AMS</p>
+        <p>Gestão de Folgas, Banco de Horas e Férias - Time AMS</p>
       </footer>
     </div>
   );

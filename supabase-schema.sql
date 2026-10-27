@@ -18,11 +18,20 @@ CREATE TABLE IF NOT EXISTS public.employees (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     team_id UUID REFERENCES public.teams(id) ON DELETE SET NULL,
+    saldo_base_minutos INTEGER DEFAULT 0,
+    saldo_base_horas TEXT DEFAULT '00:00',
+    data_base_saldo DATE,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- Caso a tabela employees já exista de uma execução anterior:
-ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES public.teams(id) ON DELETE SET NULL;
+ALTER TABLE public.employees 
+    ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES public.teams(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS saldo_base_minutos INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS saldo_base_horas TEXT DEFAULT '00:00',
+    ADD COLUMN IF NOT EXISTS data_base_saldo DATE,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
 
 -- 4. Tabela: time_offs (Folgas)
 CREATE TABLE IF NOT EXISTS public.time_offs (
@@ -68,12 +77,24 @@ ON public.teams FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Permitir inserção de times" 
 ON public.teams FOR INSERT TO anon, authenticated WITH CHECK (true);
 
+CREATE POLICY "Permitir atualização de times" 
+ON public.teams FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir exclusão de times" 
+ON public.teams FOR DELETE TO anon, authenticated USING (true);
+
 -- Políticas de acesso público para employees
 CREATE POLICY "Permitir leitura de colaboradores" 
 ON public.employees FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "Permitir inserção de colaboradores" 
 ON public.employees FOR INSERT TO anon, authenticated WITH CHECK (true);
+
+CREATE POLICY "Permitir atualização de colaboradores" 
+ON public.employees FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir exclusão de colaboradores" 
+ON public.employees FOR DELETE TO anon, authenticated USING (true);
 
 -- Políticas de acesso público para time_offs
 CREATE POLICY "Permitir leitura de folgas" 
@@ -129,4 +150,12 @@ INSERT INTO public.teams (name) VALUES
     ('Stellantis'),
     ('Iveco')
 ON CONFLICT (name) DO NOTHING;
+
+-- 10. Permissões explícitas nas tabelas (GRANT ALL)
+GRANT ALL ON TABLE public.teams TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.employees TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.time_offs TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.vacations TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.report_recipients TO authenticated, anon, service_role;
+
 

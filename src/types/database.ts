@@ -9,7 +9,20 @@ export interface Employee {
   name: string;
   team_id?: string | null;
   teams?: Team | null;
+  saldo_base_minutos?: number | null;
+  saldo_base_horas?: string | null;
+  data_base_saldo?: string | null; // YYYY-MM-DD
+  updated_at?: string | null;
   created_at?: string;
+}
+
+export interface UpdateEmployeePayload {
+  id: string;
+  name?: string;
+  team_id?: string | null;
+  saldo_base_minutos?: number | null;
+  saldo_base_horas?: string | null;
+  data_base_saldo?: string | null;
 }
 
 export interface TimeOff {

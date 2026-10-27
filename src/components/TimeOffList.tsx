@@ -1,25 +1,28 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Calendar, 
-  Clock, 
-  Trash2, 
-  Loader2, 
-  CalendarDays, 
-  History, 
-  Sun, 
-  Filter, 
+import {
+  Calendar,
+  Clock,
+  Trash2,
+  Loader2,
+  CalendarDays,
+  History,
+  Sun,
+  Filter,
   Building2,
-  FileSpreadsheet
+  FileSpreadsheet,
 } from 'lucide-react';
-import type { TimeOffWithEmployee, Team } from '../types/database';
+import type { TimeOffWithEmployee, Team, Employee } from '../types/database';
 import { formatDateBR, isUpcoming, isWithinPastFilter } from '../utils/date';
 import type { PastDateFilter } from '../utils/date';
 import { exportTableToExcel } from '../utils/export';
+import { calculateEmployeeBalance } from '../utils/balance';
+import type { EmployeeBalanceSummary } from '../utils/balance';
 import { useAuth } from '../context/AuthContext';
 
 interface TimeOffListProps {
   timeOffs: TimeOffWithEmployee[];
   teams: Team[];
+  employees?: Employee[];
   loading: boolean;
   deletingId: string | null;
   onDeleteTimeOff: (id: string) => Promise<void>;
@@ -32,6 +35,7 @@ type TabType = 'upcoming' | 'past';
 export const TimeOffList: React.FC<TimeOffListProps> = ({
   timeOffs,
   teams,
+  employees = [],
   loading,
   deletingId,
   onDeleteTimeOff,
@@ -40,28 +44,34 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
 }) => {
   const { isReadOnly } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
-  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL'); // 'ALL' ou id do time
-  const [pastFilter, setPastFilter] = useState<PastDateFilter>('30d'); // '30d' | '90d' | 'year' | 'all'
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL');
+  const [pastFilter, setPastFilter] = useState<PastDateFilter>('30d');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Mapa rápido de Saldo Hoje por colaborador
+  const balanceByEmployeeId = useMemo(() => {
+    const map = new Map<string, EmployeeBalanceSummary>();
+    employees.forEach((emp) => {
+      map.set(emp.id, calculateEmployeeBalance(emp, timeOffs));
+    });
+    return map;
+  }, [employees, timeOffs]);
 
   // Filtra por data (próximas vs passadas com período) e por time selecionado
   const filteredList = useMemo(() => {
     return timeOffs
       .filter((item) => {
-        // 1. Filtro de data
         if (activeTab === 'upcoming') {
           if (!isUpcoming(item.date)) return false;
         } else {
-          // Aba de folgas passadas: aplica o filtro de período (30d, 90d, ano inteiro, todas)
           if (!isWithinPastFilter(item.date, pastFilter)) return false;
         }
 
-        // 2. Filtro de time
         if (selectedTeamFilter === 'ALL') return true;
-        
+
         const teamId = item.employees?.team_id || item.employees?.teams?.id;
         const teamName = item.employees?.teams?.name?.toLowerCase();
-        
+
         return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
       })
       .sort((a, b) => {
@@ -123,7 +133,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-white">Quadro de Folgas</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Acompanhe a escala de ausências por time e histórico
+            Acompanhe a escala de ausências por time, histórico e saldo de horas atualizado
           </p>
         </div>
 
@@ -177,7 +187,10 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
           {/* Filtro de Período (discreto, aparece apenas quando a aba Passadas estiver ativa) */}
           {activeTab === 'past' && (
             <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-in fade-in duration-150">
-              <label htmlFor="pastFilterSelect" className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+              <label
+                htmlFor="pastFilterSelect"
+                className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap"
+              >
                 Período:
               </label>
               <select
@@ -186,10 +199,18 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                 onChange={(e) => setPastFilter(e.target.value as PastDateFilter)}
                 className="bg-transparent text-sm font-medium text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
               >
-                <option value="30d" className="dark:bg-slate-800">30 Dias</option>
-                <option value="90d" className="dark:bg-slate-800">90 Dias</option>
-                <option value="year" className="dark:bg-slate-800">Ano Inteiro</option>
-                <option value="all" className="dark:bg-slate-800">Todas</option>
+                <option value="30d" className="dark:bg-slate-800">
+                  30 Dias
+                </option>
+                <option value="90d" className="dark:bg-slate-800">
+                  90 Dias
+                </option>
+                <option value="year" className="dark:bg-slate-800">
+                  Ano Inteiro
+                </option>
+                <option value="all" className="dark:bg-slate-800">
+                  Todas
+                </option>
               </select>
             </div>
           )}
@@ -197,7 +218,10 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
           {/* Filtro por Time */}
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
             <Filter className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-            <label htmlFor="teamFilterSelect" className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+            <label
+              htmlFor="teamFilterSelect"
+              className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap"
+            >
               Time:
             </label>
             <select
@@ -206,7 +230,9 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
               onChange={(e) => setSelectedTeamFilter(e.target.value)}
               className="bg-transparent text-sm font-medium text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
             >
-              <option value="ALL" className="dark:bg-slate-800">Todos os Times</option>
+              <option value="ALL" className="dark:bg-slate-800">
+                Todos os Times
+              </option>
               {teams.map((t) => (
                 <option key={t.id} value={t.id} className="dark:bg-slate-800">
                   {t.name}
@@ -262,6 +288,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                 <th className="py-3.5 px-6">Time</th>
                 <th className="py-3.5 px-6">Data</th>
                 <th className="py-3.5 px-6">Tipo</th>
+                <th className="py-3.5 px-6">Saldo Hoje</th>
                 <th className="py-3.5 px-6">Descrição</th>
                 {!isReadOnly && <th className="py-3.5 px-6 text-right">Ações</th>}
               </tr>
@@ -272,6 +299,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                 const isConfirming = confirmDeleteId === item.id;
                 const employeeName = item.employees?.name || 'Não identificado';
                 const teamName = item.employees?.teams?.name;
+                const balanceInfo = balanceByEmployeeId.get(item.employee_id);
 
                 return (
                   <tr
@@ -291,12 +319,16 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                     {/* Time / Projeto */}
                     <td className="py-4 px-6 whitespace-nowrap">
                       {teamName ? (
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${getTeamBadgeStyle(teamName)}`}>
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${getTeamBadgeStyle(teamName)}`}
+                        >
                           <Building2 className="w-3 h-3 opacity-70" />
                           {teamName}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-400 dark:text-slate-500 italic">Sem time</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 italic">
+                          Sem time
+                        </span>
                       )}
                     </td>
 
@@ -315,7 +347,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                       {item.is_full_day ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
                           <Sun className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-                          Dia Inteiro
+                          Dia Inteiro (08:00)
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
@@ -325,12 +357,34 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                       )}
                     </td>
 
+                    {/* Saldo Hoje do Colaborador */}
+                    <td className="py-4 px-6 whitespace-nowrap">
+                      {balanceInfo && balanceInfo.hasBaseBalance ? (
+                        <span
+                          title={`Saldo Base: ${balanceInfo.baseHHMM}h${balanceInfo.baseDate ? ` (Ref: ${formatDateBR(balanceInfo.baseDate)})` : ''} | Abatido pós data-base: ${balanceInfo.deductedHHMM}h`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${
+                            balanceInfo.currentBalanceMinutes < 0
+                              ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60'
+                              : balanceInfo.currentBalanceMinutes > 0
+                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {balanceInfo.currentBalanceHHMM}h
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 dark:text-slate-500 italic">-</span>
+                      )}
+                    </td>
+
                     {/* Descrição */}
                     <td className="py-4 px-6 text-slate-600 dark:text-slate-300 max-w-xs truncate">
                       {item.description ? (
                         <span title={item.description}>{item.description}</span>
                       ) : (
-                        <span className="text-slate-400 dark:text-slate-500 italic text-xs">Sem descrição</span>
+                        <span className="text-slate-400 dark:text-slate-500 italic text-xs">
+                          Sem descrição
+                        </span>
                       )}
                     </td>
 
