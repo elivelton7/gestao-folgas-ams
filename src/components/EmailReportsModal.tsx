@@ -1,20 +1,25 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Mail, 
-  X, 
-  Plus, 
-  Trash2, 
-  Loader2, 
-  Clock, 
-  Send, 
+import {
+  Mail,
+  X,
+  Plus,
+  Trash2,
+  Loader2,
+  Clock,
+  Send,
   Info,
   CalendarDays,
   Sparkles,
   Palmtree,
   PlayCircle,
-  Calendar
+  Calendar,
 } from 'lucide-react';
-import type { ReportRecipient, ReportFrequency, TimeOffWithEmployee, VacationWithEmployee } from '../types/database';
+import type {
+  ReportRecipient,
+  ReportFrequency,
+  TimeOffWithEmployee,
+  VacationWithEmployee,
+} from '../types/database';
 import { formatDateBR, isVacationCurrent, getTodayDateString } from '../utils/date';
 
 interface EmailReportsModalProps {
@@ -22,7 +27,11 @@ interface EmailReportsModalProps {
   onClose: () => void;
   recipients: ReportRecipient[];
   loadingRecipients: boolean;
-  onAddRecipient: (payload: { name?: string; email: string; frequency: ReportFrequency }) => Promise<any>;
+  onAddRecipient: (payload: {
+    name?: string;
+    email: string;
+    frequency: ReportFrequency;
+  }) => Promise<any>;
   onToggleActive: (id: string, currentStatus: boolean) => Promise<void>;
   onDeleteRecipient: (id: string) => Promise<void>;
   timeOffs: TimeOffWithEmployee[];
@@ -44,9 +53,10 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
   onSuccessToast,
   onErrorToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<'recipients' | 'gmail-setup' | 'preview'>('recipients');
-  
-  // Form de novo destinatário
+  const [activeTab, setActiveTab] = useState<'recipients' | 'gmail-setup' | 'preview'>(
+    'recipients'
+  );
+
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [frequency, setFrequency] = useState<ReportFrequency>('DAILY');
@@ -54,7 +64,6 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isTriggeringCron, setIsTriggeringCron] = useState(false);
 
-  // Férias filtradas para prévia: SOMENTE em curso e próximas (exclui passadas)
   const todayStr = getTodayDateString();
   const previewVacations = useMemo(() => {
     return (vacations || [])
@@ -69,7 +78,6 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
       });
   }, [vacations, todayStr]);
 
-  // Folgas filtradas para prévia e disparo: SOMENTE a partir de hoje (exclui passadas)
   const previewTimeOffs = useMemo(() => {
     return (timeOffs || [])
       .filter((item) => item.date >= todayStr)
@@ -132,7 +140,9 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
         throw new Error(data.error || 'Falha ao processar envio de e-mail.');
       }
 
-      onSuccessToast(`E-mail com Folgas e Férias enviado com sucesso para ${activeRecipients.length} destinatário(s)!`);
+      onSuccessToast(
+        `E-mail com Folgas e Férias enviado com sucesso para ${activeRecipients.length} destinatário(s)!`
+      );
     } catch (err: any) {
       console.error('Erro no envio:', err);
       onErrorToast(err.message || 'Erro ao conectar ou enviar via Gmail.');
@@ -164,21 +174,21 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
     switch (freq) {
       case 'REALTIME':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/12 text-amber-700 dark:text-amber-300">
             <Sparkles className="w-3 h-3 text-amber-500" />
             Tempo Real
           </span>
         );
       case 'DAILY':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-            <Clock className="w-3 h-3 text-blue-500" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#0071E3]/12 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF]">
+            <Clock className="w-3 h-3" />
             Diário (08:00)
           </span>
         );
       case 'WEEKLY':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/12 text-purple-700 dark:text-purple-300">
             <CalendarDays className="w-3 h-3 text-purple-500" />
             Semanal (Segunda)
           </span>
@@ -189,66 +199,74 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div 
-        className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[92vh] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200 ease-out"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white/90 dark:bg-[#1C1C1E]/95 backdrop-blur-2xl w-full max-w-4xl max-h-[92vh] rounded-3xl shadow-apple-lg border border-black/[0.08] dark:border-white/10 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 ease-out"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho do Modal */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+        <div className="p-6 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center">
               <Mail className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              <h2 className="text-lg font-semibold text-[#1D1D1F] dark:text-white tracking-tight">
                 Relatórios Automatizados • TIME AMS
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
                 Escala de Folgas e Férias enviadas diretamente para a liderança e equipe
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="w-8 h-8 rounded-full bg-neutral-200/70 dark:bg-[#2C2C2E] text-neutral-500 hover:text-[#1D1D1F] dark:hover:text-white flex items-center justify-center transition-all duration-200 ease-out"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Abas Superiores */}
-        <div className="px-6 pt-3 border-b border-slate-100 dark:border-slate-800 flex gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('recipients')}
-            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'recipients'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-            }`}
-          >
-            Destinatários ({recipients.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('gmail-setup')}
-            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'gmail-setup'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-            }`}
-          >
-            Configurações & Horários
-          </button>
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'preview'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
-            }`}
-          >
-            Prévia & Disparo Manual
-          </button>
+        {/* Segmented Control Superior */}
+        <div className="px-6 py-3 border-b border-black/[0.06] dark:border-white/[0.08] bg-[#F5F5F7]/50 dark:bg-black/20 flex items-center overflow-x-auto">
+          <div className="apple-segmented-control">
+            <button
+              onClick={() => setActiveTab('recipients')}
+              type="button"
+              className={`apple-segmented-item ${
+                activeTab === 'recipients'
+                  ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
+                  : 'apple-segmented-item-inactive'
+              }`}
+            >
+              Destinatários ({recipients.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('gmail-setup')}
+              type="button"
+              className={`apple-segmented-item ${
+                activeTab === 'gmail-setup'
+                  ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
+                  : 'apple-segmented-item-inactive'
+              }`}
+            >
+              Configurações & Horários
+            </button>
+            <button
+              onClick={() => setActiveTab('preview')}
+              type="button"
+              className={`apple-segmented-item ${
+                activeTab === 'preview'
+                  ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
+                  : 'apple-segmented-item-inactive'
+              }`}
+            >
+              Prévia & Disparo Manual
+            </button>
+          </div>
         </div>
 
         {/* Conteúdo das Abas */}
@@ -257,13 +275,16 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
           {activeTab === 'recipients' && (
             <div className="space-y-6">
               {/* Formulário de Novo E-mail */}
-              <form onSubmit={handleAddSubmit} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-4">
-                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              <form
+                onSubmit={handleAddSubmit}
+                className="apple-grouped-inset p-5 space-y-4"
+              >
+                <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   Adicionar Novo Destinatário
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                       Nome (Opcional)
                     </label>
                     <input
@@ -271,12 +292,12 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Ex: Gestor TI"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="apple-input bg-white dark:bg-[#2C2C2E] py-2 text-xs"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                       E-mail *
                     </label>
                     <input
@@ -285,18 +306,18 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="gestor@empresa.com"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="apple-input bg-white dark:bg-[#2C2C2E] py-2 text-xs"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                       Frequência de Envio
                     </label>
                     <select
                       value={frequency}
                       onChange={(e) => setFrequency(e.target.value as ReportFrequency)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="apple-input bg-white dark:bg-[#2C2C2E] py-2 text-xs cursor-pointer"
                     >
                       <option value="DAILY">Diário (todos os dias úteis às 08:00)</option>
                       <option value="WEEKLY">Semanal (toda segunda às 08:00)</option>
@@ -309,7 +330,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-sm transition disabled:opacity-50"
+                    className="apple-btn-primary py-2 px-5 text-xs"
                   >
                     {isSubmitting ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -321,39 +342,40 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                 </div>
               </form>
 
-              {/* Tabela de Destinatários */}
+              {/* Lista Agrupada de Destinatários */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Destinatários Ativos ({recipients.filter((r) => r.is_active).length} de {recipients.length})
+                  <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                    Destinatários Ativos ({recipients.filter((r) => r.is_active).length} de{' '}
+                    {recipients.length})
                   </h3>
                 </div>
 
                 {loadingRecipients ? (
-                  <div className="p-8 text-center text-slate-400 flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <div className="apple-grouped-inset p-8 text-center text-neutral-400 flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#0071E3]" />
                     <span className="text-xs">Carregando destinatários...</span>
                   </div>
                 ) : recipients.length === 0 ? (
-                  <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400">
+                  <div className="apple-grouped-inset p-8 text-center text-neutral-400">
                     <p className="text-xs">Nenhum e-mail cadastrado ainda.</p>
                   </div>
                 ) : (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                  <div className="apple-grouped-inset p-2 space-y-1.5">
                     {recipients.map((recipient) => (
                       <div
                         key={recipient.id}
-                        className="p-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
+                        className="p-3.5 rounded-xl bg-white/90 dark:bg-[#2C2C2E]/85 flex items-center justify-between gap-4 shadow-apple-sm transition-all duration-200 ease-out"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">
+                            <span className="font-semibold text-xs text-[#1D1D1F] dark:text-white truncate">
                               {recipient.name || recipient.email}
                             </span>
                             {getFrequencyBadge(recipient.frequency)}
                           </div>
                           {recipient.name && (
-                            <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                            <p className="text-[11px] text-neutral-400 truncate mt-0.5">
                               {recipient.email}
                             </p>
                           )}
@@ -363,10 +385,10 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                           <button
                             type="button"
                             onClick={() => onToggleActive(recipient.id, recipient.is_active)}
-                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition ${
+                            className={`px-3 py-1 text-[11px] font-semibold rounded-full transition-all duration-200 ${
                               recipient.is_active
-                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700'
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-neutral-500/10 text-neutral-500'
                             }`}
                           >
                             {recipient.is_active ? 'Ativo' : 'Pausado'}
@@ -375,7 +397,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                           <button
                             type="button"
                             onClick={() => onDeleteRecipient(recipient.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            className="w-8 h-8 inline-flex items-center justify-center text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-full hover:bg-rose-500/10 transition-all duration-200"
                             title="Remover destinatário"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -391,79 +413,103 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
 
           {/* ABA 2: CONFIGURAÇÃO DE ENVIO E HORÁRIOS */}
           {activeTab === 'gmail-setup' && (
-            <div className="space-y-5 text-xs text-slate-600 dark:text-slate-300">
-              {/* Card dos Horários do Cron */}
-              <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-start gap-3">
-                <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-5 text-xs text-neutral-600 dark:text-neutral-300">
+              <div className="p-4 rounded-2xl bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 border border-[#0071E3]/20 flex items-start gap-3.5">
+                <Clock className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF] flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-indigo-900 dark:text-indigo-200 text-sm">
+                  <h4 className="font-semibold text-[#1D1D1F] dark:text-white text-sm tracking-tight">
                     Horários de Envio Automatizado
                   </h4>
-                  <p className="mt-1 text-indigo-800 dark:text-indigo-300 leading-relaxed">
+                  <p className="mt-1 text-neutral-600 dark:text-neutral-300 leading-relaxed">
                     Os relatórios são acionados automaticamente pelo servidor (Vercel Cron & GitHub Actions):
                   </p>
-                  <ul className="mt-2 space-y-1 text-indigo-900 dark:text-indigo-200 font-medium">
+                  <ul className="mt-2 space-y-1 text-[#1D1D1F] dark:text-neutral-200 font-medium">
                     <li className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
-                      <strong>Diário:</strong> Todos os dias às <strong>08:00</strong> (Horário de Brasília) para destinatários com frequência Diária.
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]"></span>
+                      <strong>Diário:</strong> Todos os dias às <strong>08:00</strong> (Horário de Brasília).
                     </li>
                     <li className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
-                      <strong>Semanal:</strong> Toda <strong>segunda-feira às 08:00</strong> (Horário de Brasília) para destinatários com frequência Semanal.
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]"></span>
+                      <strong>Semanal:</strong> Toda <strong>segunda-feira às 08:00</strong> (Horário de Brasília).
                     </li>
                     <li className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
-                      <strong>Conteúdo Completo:</strong> Escala de Folgas + Férias da equipe (exibindo exclusivamente as <strong>em curso</strong> e <strong>próximas</strong>).
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]"></span>
+                      <strong>Conteúdo Completo:</strong> Escala de Folgas + Férias da equipe (em curso e próximas).
                     </li>
                   </ul>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="apple-grouped-inset p-4 flex items-start gap-3.5">
+                <Info className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF] flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-blue-900 dark:text-blue-200 text-sm">
+                  <h4 className="font-semibold text-[#1D1D1F] dark:text-white text-sm tracking-tight">
                     Autenticação SMTP via Gmail
                   </h4>
-                  <p className="mt-1 text-blue-800 dark:text-blue-300 leading-relaxed">
-                    O envio utiliza uma <strong>Senha de App (App Password)</strong> exclusiva do Google com 16 letras, sem comprometer a sua senha pessoal.
+                  <p className="mt-1 text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                    O envio utiliza uma <strong>Senha de App (App Password)</strong> exclusiva do Google com 16 letras.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <h5 className="font-bold text-slate-800 dark:text-white uppercase tracking-wider text-[11px]">
+                <h5 className="font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider text-[11px]">
                   Passo a Passo das Credenciais:
                 </h5>
 
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 space-y-1">
-                  <div className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center font-bold text-[10px]">1</span>
+                <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-[#2C2C2E]/60 space-y-1">
+                  <div className="font-semibold text-[#1D1D1F] dark:text-white flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#0071E3]/15 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center font-bold text-[10px]">
+                      1
+                    </span>
                     Verificação em Duas Etapas no Google
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-7">
-                    Confirme se está ativa em <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="text-blue-600 underline">myaccount.google.com/security</a>.
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 pl-7">
+                    Confirme se está ativa em{' '}
+                    <a
+                      href="https://myaccount.google.com/security"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#0071E3] dark:text-[#0A84FF] underline"
+                    >
+                      myaccount.google.com/security
+                    </a>
+                    .
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 space-y-1">
-                  <div className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center font-bold text-[10px]">2</span>
+                <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-[#2C2C2E]/60 space-y-1">
+                  <div className="font-semibold text-[#1D1D1F] dark:text-white flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#0071E3]/15 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center font-bold text-[10px]">
+                      2
+                    </span>
                     Gerar Senha de App
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-7">
-                    Gere uma senha de app em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-blue-600 underline font-semibold">myaccount.google.com/apppasswords</a> com o nome <code>Gestao Folgas AMS</code>.
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 pl-7">
+                    Gere uma senha de app em{' '}
+                    <a
+                      href="https://myaccount.google.com/apppasswords"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#0071E3] dark:text-[#0A84FF] underline font-semibold"
+                    >
+                      myaccount.google.com/apppasswords
+                    </a>{' '}
+                    com o nome <code>Gestao Folgas AMS</code>.
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 space-y-1">
-                  <div className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center font-bold text-[10px]">3</span>
+                <div className="p-4 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white/80 dark:bg-[#2C2C2E]/60 space-y-1">
+                  <div className="font-semibold text-[#1D1D1F] dark:text-white flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#0071E3]/15 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center font-bold text-[10px]">
+                      3
+                    </span>
                     Variáveis de Ambiente na Vercel e no .env
                   </div>
                   <div className="pl-7 mt-1.5">
-                    <div className="p-3 rounded-lg bg-slate-900 text-slate-200 font-mono text-[11px] overflow-x-auto">
-                      GMAIL_USER=seu-email@gmail.com<br/>
+                    <div className="p-3 rounded-xl bg-[#1D1D1F] text-neutral-200 font-mono text-[11px] overflow-x-auto">
+                      GMAIL_USER=seu-email@gmail.com
+                      <br />
                       GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
                     </div>
                   </div>
@@ -477,21 +523,20 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                     Prévia do Relatório por E-mail
                   </h4>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-neutral-400">
                     Exibe a programação completa de férias (em curso e próximas) e folgas
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  {/* Botão de Teste do Cron Automático */}
                   <button
                     type="button"
                     onClick={handleTriggerCronTest}
                     disabled={isTriggeringCron || isSendingTest}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800/80 rounded-xl transition disabled:opacity-50"
+                    className="apple-btn-secondary"
                     title="Simula o disparo automático acionando o endpoint do cron serverless"
                   >
                     {isTriggeringCron ? (
@@ -501,18 +546,17 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                       </>
                     ) : (
                       <>
-                        <PlayCircle className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        <PlayCircle className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
                         Testar Disparo Automático (Cron)
                       </>
                     )}
                   </button>
 
-                  {/* Botão de Disparo Manual com dados da tela */}
                   <button
                     type="button"
                     onClick={handleSendTestReport}
                     disabled={isSendingTest || isTriggeringCron}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-sm transition disabled:opacity-50"
+                    className="apple-btn-primary py-2 px-5 text-xs"
                   >
                     {isSendingTest ? (
                       <>
@@ -530,46 +574,45 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
               </div>
 
               {/* Template Mockup do E-mail */}
-              <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-sans text-xs shadow-xs space-y-5">
-                {/* Cabeçalho Mockup */}
-                <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+              <div className="p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-[#2C2C2E]/60 font-sans text-xs shadow-apple-sm space-y-5">
+                <div className="border-b border-black/[0.06] dark:border-white/10 pb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-[#0071E3] text-white flex items-center justify-center font-bold text-xs">
                       AMS
                     </div>
                     <div>
-                      <span className="font-bold text-slate-900 dark:text-white block">
+                      <span className="font-semibold text-[#1D1D1F] dark:text-white block">
                         Gestão de Folgas & Férias • TIME AMS
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-neutral-400">
                         Relatório da Escala de Ausências da Equipe
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">
+                  <span className="text-[10px] text-neutral-400 font-mono">
                     Ref: {formatDateBR(todayStr)}
                   </span>
                 </div>
 
-                {/* SEÇÃO 1: FÉRIAS DA EQUIPE (EM CURSO & PRÓXIMAS) */}
+                {/* SEÇÃO 1: FÉRIAS DA EQUIPE */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-xs uppercase tracking-wider">
-                    <Palmtree className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex items-center gap-2 text-[#1D1D1F] dark:text-neutral-200 font-semibold text-xs">
+                    <Palmtree className="w-4 h-4 text-emerald-500" />
                     <span>Programação de Férias (Em Curso & Próximas)</span>
-                    <span className="ml-auto text-[10px] font-normal text-slate-400 lowercase">
+                    <span className="ml-auto text-[10px] font-normal text-neutral-400">
                       {previewVacations.length} registro(s)
                     </span>
                   </div>
 
                   {previewVacations.length === 0 ? (
-                    <div className="text-center py-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl text-slate-400 italic">
+                    <div className="text-center py-4 apple-grouped-inset text-neutral-400 italic">
                       Nenhuma férias em curso ou próxima programada no momento.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-xl">
+                    <div className="overflow-x-auto apple-grouped-inset p-1.5">
                       <table className="w-full text-left text-[11px]">
                         <thead>
-                          <tr className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px]">
+                          <tr className="text-neutral-400 uppercase text-[10px]">
                             <th className="py-2 px-3">Status</th>
                             <th className="py-2 px-3">Colaborador</th>
                             <th className="py-2 px-3">Time</th>
@@ -578,35 +621,36 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                             <th className="py-2 px-3">Observação</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                        <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
                           {previewVacations.map((item) => {
                             const isCurrent = isVacationCurrent(item.start_date, item.return_date);
                             return (
-                              <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                              <tr key={item.id}>
                                 <td className="py-2.5 px-3">
                                   {isCurrent ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-                                      🟡 Em Curso
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                                      Em Curso
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-                                      🔵 Próxima
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/12 text-[#0071E3] dark:text-[#0A84FF]">
+                                      Próxima
                                     </span>
                                   )}
                                 </td>
-                                <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                                <td className="py-2.5 px-3 font-semibold text-[#1D1D1F] dark:text-white">
                                   {item.employees?.name}
                                 </td>
-                                <td className="py-2.5 px-3 text-blue-600 dark:text-blue-400 font-medium">
+                                <td className="py-2.5 px-3 text-[#0071E3] dark:text-[#0A84FF] font-medium">
                                   {item.employees?.teams?.name || 'Geral'}
                                 </td>
-                                <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300">
-                                  {formatDateBR(item.start_date)} até {formatDateBR(item.return_date)}
+                                <td className="py-2.5 px-3 font-mono text-neutral-600 dark:text-neutral-300">
+                                  {formatDateBR(item.start_date)} até{' '}
+                                  {formatDateBR(item.return_date)}
                                 </td>
                                 <td className="py-2.5 px-3 font-semibold text-teal-600 dark:text-teal-400">
                                   {item.days} dias
                                 </td>
-                                <td className="py-2.5 px-3 text-slate-500">
+                                <td className="py-2.5 px-3 text-neutral-500">
                                   {item.notes || '-'}
                                 </td>
                               </tr>
@@ -620,23 +664,23 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
 
                 {/* SEÇÃO 2: FOLGAS & COMPENSAÇÕES */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-xs uppercase tracking-wider">
-                    <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <div className="flex items-center gap-2 text-[#1D1D1F] dark:text-neutral-200 font-semibold text-xs">
+                    <Calendar className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
                     <span>Próximas Folgas & Compensações</span>
-                    <span className="ml-auto text-[10px] font-normal text-slate-400 lowercase">
+                    <span className="ml-auto text-[10px] font-normal text-neutral-400">
                       {previewTimeOffs.length} registro(s)
                     </span>
                   </div>
 
                   {previewTimeOffs.length === 0 ? (
-                    <div className="text-center py-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl text-slate-400 italic">
+                    <div className="text-center py-4 apple-grouped-inset text-neutral-400 italic">
                       Não há folgas cadastradas para hoje ou próximas datas.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-xl">
+                    <div className="overflow-x-auto apple-grouped-inset p-1.5">
                       <table className="w-full text-left text-[11px]">
                         <thead>
-                          <tr className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px]">
+                          <tr className="text-neutral-400 uppercase text-[10px]">
                             <th className="py-2 px-3">Colaborador</th>
                             <th className="py-2 px-3">Time</th>
                             <th className="py-2 px-3">Data</th>
@@ -644,22 +688,22 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                             <th className="py-2 px-3">Motivo</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                        <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]">
                           {previewTimeOffs.map((item) => (
-                            <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                              <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                            <tr key={item.id}>
+                              <td className="py-2.5 px-3 font-semibold text-[#1D1D1F] dark:text-white">
                                 {item.employees?.name}
                               </td>
-                              <td className="py-2.5 px-3 text-blue-600 dark:text-blue-400 font-medium">
+                              <td className="py-2.5 px-3 text-[#0071E3] dark:text-[#0A84FF] font-medium">
                                 {item.employees?.teams?.name || 'Geral'}
                               </td>
-                              <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300">
+                              <td className="py-2.5 px-3 font-mono text-neutral-600 dark:text-neutral-300">
                                 {formatDateBR(item.date)}
                               </td>
                               <td className="py-2.5 px-3 font-medium text-emerald-600 dark:text-emerald-400">
                                 {item.is_full_day ? 'Dia Inteiro' : `${item.hours}h`}
                               </td>
-                              <td className="py-2.5 px-3 text-slate-500">
+                              <td className="py-2.5 px-3 text-neutral-500">
                                 {item.description || '-'}
                               </td>
                             </tr>
@@ -670,7 +714,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                   )}
                 </div>
 
-                <div className="border-t border-slate-100 dark:border-slate-800 pt-3 text-[10px] text-slate-400 text-center">
+                <div className="border-t border-black/[0.06] dark:border-white/10 pt-3 text-[10px] text-neutral-400 text-center">
                   Gestão de Folgas & Férias - TIME AMS • Notificação confidencial interna
                 </div>
               </div>

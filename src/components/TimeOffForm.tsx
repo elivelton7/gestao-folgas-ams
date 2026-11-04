@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
-  FileText, 
-  User, 
-  Plus, 
-  AlertTriangle, 
-  Check, 
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  FileText,
+  User,
+  Plus,
+  AlertTriangle,
+  Check,
   Loader2,
-  Building2
+  Building2,
 } from 'lucide-react';
 import type { Employee, CreateTimeOffPayload, TimeOffWithEmployee, Team } from '../types/database';
 import { getTodayDateString } from '../utils/date';
@@ -35,7 +35,6 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
   onSuccessToast,
   onErrorToast,
 }) => {
-  // Estados do formulário
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [employeeId, setEmployeeId] = useState('');
   const [date, setDate] = useState(getTodayDateString());
@@ -43,7 +42,6 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
   const [isFullDay, setIsFullDay] = useState(true);
   const [hours, setHours] = useState<number | ''>(4);
 
-  // Filtra colaboradores pelo time selecionado
   const filteredEmployees = useMemo(() => {
     if (!selectedTeamId) return [];
     return employees.filter((emp) => {
@@ -52,7 +50,6 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
     });
   }, [employees, selectedTeamId]);
 
-  // Se o time for alterado e o colaborador selecionado não pertencer ao novo time, limpa a seleção
   const handleTeamChange = (newTeamId: string) => {
     setSelectedTeamId(newTeamId);
     if (employeeId) {
@@ -65,15 +62,12 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
     }
   };
 
-  // Estados de controle e UX
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Conflito de datas (Regra de Negócio Crítica)
+
   const [conflicts, setConflicts] = useState<TimeOffWithEmployee[]>([]);
   const [isCheckingConflict, setIsCheckingConflict] = useState(false);
 
-  // Efeito para verificar conflitos sempre que a data ou colaborador mudar
   useEffect(() => {
     let isCancelled = false;
 
@@ -139,13 +133,11 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
       });
 
       onSuccessToast('Folga cadastrada com sucesso!');
-      
-      // Reseta os campos mantendo o time e a data para facilitar lançamentos em série
+
       setDescription('');
       setIsFullDay(true);
       setHours(4);
-      
-      // Recalcula conflitos após o insert
+
       const updatedConflicts = await checkConflicts(date, employeeId);
       setConflicts(updatedConflicts);
     } catch (err: any) {
@@ -166,25 +158,30 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
 
   return (
     <>
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 p-6 md:p-8 mb-8 transition-colors duration-200">
-        <div className="flex items-center gap-3 pb-6 mb-6 border-b border-slate-100 dark:border-slate-800">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+      <div className="apple-glass-card p-6 sm:p-8">
+        <div className="flex items-center gap-3.5 pb-6 mb-6 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <div className="w-11 h-11 rounded-2xl bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center">
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Registrar Folga</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <h2 className="text-lg sm:text-xl font-semibold text-[#1D1D1F] dark:text-white tracking-tight">
+              Registrar Folga
+            </h2>
+            <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
               Cadastre ausências planejadas ou compensações das equipes
             </p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* 1. Time / Equipe */}
             <div>
-              <label htmlFor="timeOffTeamSelect" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <label
+                htmlFor="timeOffTeamSelect"
+                className="block text-xs font-semibold text-neutral-600 dark:text-neutral-300 mb-2 flex items-center gap-1.5"
+              >
+                <Building2 className="w-4 h-4 text-neutral-400" />
                 Time / Equipe *
               </label>
               <select
@@ -192,7 +189,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                 value={selectedTeamId}
                 onChange={(e) => handleTeamChange(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-sm transition"
+                className="apple-input cursor-pointer"
                 required
               >
                 <option value="">Selecione o time...</option>
@@ -206,8 +203,11 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
 
             {/* 2. Colaborador (filtrado pelo Time) */}
             <div>
-              <label htmlFor="employeeSelect" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
-                <User className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <label
+                htmlFor="employeeSelect"
+                className="block text-xs font-semibold text-neutral-600 dark:text-neutral-300 mb-2 flex items-center gap-1.5"
+              >
+                <User className="w-4 h-4 text-neutral-400" />
                 Colaborador *
               </label>
               <div className="flex gap-2">
@@ -216,7 +216,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
                   disabled={!selectedTeamId || loadingEmployees || isSubmitting}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-sm transition disabled:opacity-60 disabled:bg-slate-50 dark:disabled:bg-slate-800/50"
+                  className="apple-input flex-1 cursor-pointer disabled:opacity-50"
                   required
                 >
                   {!selectedTeamId ? (
@@ -239,7 +239,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                   onClick={() => setIsModalOpen(true)}
                   disabled={isSubmitting}
                   title="Cadastrar novo colaborador"
-                  className="inline-flex items-center justify-center px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition shadow-sm"
+                  className="w-10 h-[42px] inline-flex items-center justify-center rounded-xl border border-black/[0.06] dark:border-white/10 bg-neutral-100/90 dark:bg-[#2C2C2E] hover:bg-[#0071E3]/10 dark:hover:bg-[#0A84FF]/20 text-neutral-700 dark:text-neutral-200 hover:text-[#0071E3] dark:hover:text-[#0A84FF] active:scale-95 transition-all duration-200 ease-out flex-shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -249,12 +249,15 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
             {/* 3. Campo de Data */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label htmlFor="timeOffDate" className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <CalendarIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                <label
+                  htmlFor="timeOffDate"
+                  className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 flex items-center gap-1.5"
+                >
+                  <CalendarIcon className="w-4 h-4 text-neutral-400" />
                   Data da Folga *
                 </label>
                 {isCheckingConflict && (
-                  <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <span className="text-[11px] text-neutral-400 flex items-center gap-1">
                     <Loader2 className="w-3 h-3 animate-spin" /> Verificando...
                   </span>
                 )}
@@ -265,7 +268,7 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 text-sm transition"
+                className="apple-input"
                 required
               />
             </div>
@@ -273,23 +276,28 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
 
           {/* REGRA DE NEGÓCIO CRÍTICA: Alerta de Conflito de Data */}
           {conflicts.length > 0 && (
-            <div 
-              className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 animate-in fade-in slide-in-from-top-1"
+            <div
+              className="p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/25 text-amber-950 dark:text-amber-200 animate-in fade-in duration-200 ease-out"
               role="alert"
             >
-              <div className="flex items-start gap-2.5">
+              <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 leading-tight">
-                    Atenção: Já existe outro colaborador do time com folga marcada para este dia.
+                  <p className="text-xs sm:text-sm font-semibold text-amber-900 dark:text-amber-100 leading-tight">
+                    Conflito de Escala: Já existe outro colaborador com folga marcada para este dia.
                   </p>
                   <ul className="mt-1.5 space-y-1 text-xs text-amber-800 dark:text-amber-300/90">
                     {conflicts.map((conf) => {
-                      const conflictTeam = conf.employees?.teams?.name ? ` [${conf.employees.teams.name}]` : '';
+                      const conflictTeam = conf.employees?.teams?.name
+                        ? ` [${conf.employees.teams.name}]`
+                        : '';
                       return (
                         <li key={conf.id} className="flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          <strong className="font-semibold">{conf.employees?.name || 'Colaborador'}{conflictTeam}:</strong>{' '}
+                          <strong className="font-semibold">
+                            {conf.employees?.name || 'Colaborador'}
+                            {conflictTeam}:
+                          </strong>{' '}
                           {conf.is_full_day ? 'Dia inteiro' : `${conf.hours} horas`}
                           {conf.description ? ` (${conf.description})` : ''}
                         </li>
@@ -301,11 +309,14 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
             {/* Descrição */}
             <div>
-              <label htmlFor="descriptionInput" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <label
+                htmlFor="descriptionInput"
+                className="block text-xs font-semibold text-neutral-600 dark:text-neutral-300 mb-2 flex items-center gap-1.5"
+              >
+                <FileText className="w-4 h-4 text-neutral-400" />
                 Descrição / Motivo
               </label>
               <input
@@ -315,20 +326,29 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Ex: Consulta médica, Folga compensatória, Banco de horas..."
                 disabled={isSubmitting}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-800 text-sm transition"
+                className="apple-input"
               />
             </div>
 
             {/* Toggle Dia Inteiro / Quantidade de Horas */}
             <div>
-              <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                Tipo de Folga *
+              <span className="block text-xs font-semibold text-neutral-600 dark:text-neutral-300 mb-2 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-neutral-400" />
+                Período da Ausência *
               </span>
               <div className="space-y-3">
-                {/* Toggle Switch estilizado */}
-                <label className="relative flex items-center gap-3 cursor-pointer select-none">
-                  <div className="relative">
+                <div className="p-2.5 px-3.5 rounded-xl bg-neutral-100/80 dark:bg-[#2C2C2E] border border-black/[0.05] dark:border-white/[0.08] flex items-center justify-between">
+                  <span className="text-sm font-medium text-[#1D1D1F] dark:text-neutral-200">
+                    Dia inteiro{' '}
+                    {isFullDay ? (
+                      <span className="text-xs text-[#0071E3] dark:text-[#0A84FF] font-semibold">
+                        (08:00h)
+                      </span>
+                    ) : (
+                      <span className="text-xs text-neutral-400">(Parcial por horas)</span>
+                    )}
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={isFullDay}
@@ -336,17 +356,16 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                       disabled={isSubmitting}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 dark:after:border-slate-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Dia inteiro? {isFullDay ? <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">(Sim)</span> : <span className="text-xs text-slate-400 dark:text-slate-500">(Parcial / Horas)</span>}
-                  </span>
-                </label>
+                    <div className="w-11 h-6 bg-neutral-300 dark:bg-neutral-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow-sm after:transition-all duration-200 peer-checked:bg-[#34C759]"></div>
+                  </label>
+                </div>
 
-                {/* Input condicional de Horas */}
                 {!isFullDay && (
-                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 animate-in fade-in slide-in-from-top-2">
-                    <label htmlFor="hoursInput" className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+                  <div className="p-3.5 rounded-2xl bg-neutral-100/70 dark:bg-[#2C2C2E]/70 border border-black/[0.05] dark:border-white/[0.08] animate-in fade-in duration-200 ease-out">
+                    <label
+                      htmlFor="hoursInput"
+                      className="block text-xs font-medium text-neutral-600 dark:text-neutral-300 mb-1.5"
+                    >
                       Quantidade de Horas (ex: 2, 4)
                     </label>
                     <div className="relative">
@@ -356,13 +375,15 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
                         min="1"
                         max="23"
                         value={hours}
-                        onChange={(e) => setHours(e.target.value === '' ? '' : Number(e.target.value))}
+                        onChange={(e) =>
+                          setHours(e.target.value === '' ? '' : Number(e.target.value))
+                        }
                         disabled={isSubmitting}
                         placeholder="Ex: 4"
-                        className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 dark:text-slate-100 text-sm bg-white dark:bg-slate-800"
+                        className="apple-input pr-14 bg-white dark:bg-[#1C1C1E]"
                         required={!isFullDay}
                       />
-                      <span className="absolute right-3 top-2.5 text-xs text-slate-400 dark:text-slate-500 font-medium pointer-events-none">
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-neutral-400 font-medium pointer-events-none">
                         horas
                       </span>
                     </div>
@@ -373,12 +394,8 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
           </div>
 
           {/* Botão de Envio */}
-          <div className="flex items-center justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-500/20 transition disabled:opacity-50"
-            >
+          <div className="flex items-center justify-end pt-4 border-t border-black/[0.05] dark:border-white/[0.08]">
+            <button type="submit" disabled={isSubmitting} className="apple-btn-primary">
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -395,7 +412,6 @@ export const TimeOffForm: React.FC<TimeOffFormProps> = ({
         </form>
       </div>
 
-      {/* Modal de cadastro de novo colaborador com time */}
       <AddEmployeeModal
         isOpen={isModalOpen}
         teams={teams}

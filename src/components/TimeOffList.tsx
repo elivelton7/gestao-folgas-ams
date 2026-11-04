@@ -10,6 +10,8 @@ import {
   Filter,
   Building2,
   FileSpreadsheet,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import type { TimeOffWithEmployee, Team, Employee } from '../types/database';
 import { formatDateBR, isUpcoming, isWithinPastFilter } from '../utils/date';
@@ -56,6 +58,15 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
     });
     return map;
   }, [employees, timeOffs]);
+
+  // Mapa de contagem por data para indicar badge de "Conflito" ou "Aprovado"
+  const countByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    timeOffs.forEach((item) => {
+      map.set(item.date, (map.get(item.date) || 0) + 1);
+    });
+    return map;
+  }, [timeOffs]);
 
   // Filtra por data (próximas vs passadas com período) e por time selecionado
   const filteredList = useMemo(() => {
@@ -114,48 +125,50 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
 
   const getTeamBadgeStyle = (teamName?: string) => {
     if (!teamName) {
-      return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700';
+      return 'bg-neutral-500/10 text-neutral-600 dark:text-neutral-400';
     }
     const lower = teamName.toLowerCase();
     if (lower.includes('stellantis')) {
-      return 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60';
+      return 'bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF]';
     }
     if (lower.includes('iveco')) {
-      return 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800/60';
+      return 'bg-purple-500/10 dark:bg-purple-400/15 text-purple-600 dark:text-purple-300';
     }
-    return 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800/60';
+    return 'bg-teal-500/10 dark:bg-teal-400/15 text-teal-700 dark:text-teal-300';
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-colors duration-200">
+    <div className="apple-glass-card p-6 sm:p-8 space-y-6">
       {/* Cabeçalho da listagem, abas e filtros integrados */}
-      <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 pb-2">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Quadro de Folgas</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Acompanhe a escala de ausências por time, histórico e saldo de horas atualizado
+          <h2 className="text-lg sm:text-xl font-semibold text-[#1D1D1F] dark:text-white tracking-tight">
+            Quadro de Folgas
+          </h2>
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+            Escala de ausências por equipe, status e saldo de horas atualizado
           </p>
         </div>
 
-        {/* Controles: Abas + Filtro de Período (Passadas) + Filtro de Time + Ícone do Excel */}
+        {/* Controles estilo macOS: Segmented Control + Filtros + Export */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Abas / Tabs para alternar entre Próximas e Passadas */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+          <div className="apple-segmented-control">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition ${
+              type="button"
+              className={`apple-segmented-item ${
                 activeTab === 'upcoming'
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
+                  : 'apple-segmented-item-inactive'
               }`}
             >
               <CalendarDays className="w-4 h-4" />
               <span>Próximas</span>
               <span
-                className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
                   activeTab === 'upcoming'
-                    ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
-                    : 'bg-slate-200 dark:bg-slate-750 text-slate-600 dark:text-slate-400'
+                    ? 'bg-[#0071E3]/15 dark:bg-[#0A84FF]/20 text-[#0071E3] dark:text-[#0A84FF]'
+                    : 'bg-black/[0.06] dark:bg-white/10 text-neutral-500 dark:text-neutral-400'
                 }`}
               >
                 {upcomingCount}
@@ -164,19 +177,20 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
 
             <button
               onClick={() => setActiveTab('past')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition ${
+              type="button"
+              className={`apple-segmented-item ${
                 activeTab === 'past'
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
+                  : 'apple-segmented-item-inactive'
               }`}
             >
               <History className="w-4 h-4" />
               <span>Passadas</span>
               <span
-                className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
                   activeTab === 'past'
-                    ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
-                    : 'bg-slate-200 dark:bg-slate-750 text-slate-600 dark:text-slate-400'
+                    ? 'bg-[#0071E3]/15 dark:bg-[#0A84FF]/20 text-[#0071E3] dark:text-[#0A84FF]'
+                    : 'bg-black/[0.06] dark:bg-white/10 text-neutral-500 dark:text-neutral-400'
                 }`}
               >
                 {pastCount}
@@ -184,12 +198,11 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
             </button>
           </div>
 
-          {/* Filtro de Período (discreto, aparece apenas quando a aba Passadas estiver ativa) */}
           {activeTab === 'past' && (
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 animate-in fade-in duration-150">
+            <div className="flex items-center gap-1.5 bg-neutral-100/90 dark:bg-[#2C2C2E] px-3.5 py-2 rounded-full border border-black/[0.05] dark:border-white/10 animate-in fade-in duration-200 ease-out">
               <label
                 htmlFor="pastFilterSelect"
-                className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap"
+                className="text-xs font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap"
               >
                 Período:
               </label>
@@ -197,18 +210,18 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                 id="pastFilterSelect"
                 value={pastFilter}
                 onChange={(e) => setPastFilter(e.target.value as PastDateFilter)}
-                className="bg-transparent text-sm font-medium text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-xs sm:text-sm font-semibold text-[#1D1D1F] dark:text-neutral-200 focus:outline-none cursor-pointer pr-1"
               >
-                <option value="30d" className="dark:bg-slate-800">
+                <option value="30d" className="dark:bg-[#1C1C1E]">
                   30 Dias
                 </option>
-                <option value="90d" className="dark:bg-slate-800">
+                <option value="90d" className="dark:bg-[#1C1C1E]">
                   90 Dias
                 </option>
-                <option value="year" className="dark:bg-slate-800">
+                <option value="year" className="dark:bg-[#1C1C1E]">
                   Ano Inteiro
                 </option>
-                <option value="all" className="dark:bg-slate-800">
+                <option value="all" className="dark:bg-[#1C1C1E]">
                   Todas
                 </option>
               </select>
@@ -216,11 +229,11 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
           )}
 
           {/* Filtro por Time */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <Filter className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+          <div className="flex items-center gap-2 bg-neutral-100/90 dark:bg-[#2C2C2E] px-3.5 py-2 rounded-full border border-black/[0.05] dark:border-white/10">
+            <Filter className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
             <label
               htmlFor="teamFilterSelect"
-              className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap"
+              className="text-xs font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap"
             >
               Time:
             </label>
@@ -228,185 +241,207 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
               id="teamFilterSelect"
               value={selectedTeamFilter}
               onChange={(e) => setSelectedTeamFilter(e.target.value)}
-              className="bg-transparent text-sm font-medium text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
+              className="bg-transparent text-xs sm:text-sm font-semibold text-[#1D1D1F] dark:text-neutral-200 focus:outline-none cursor-pointer pr-1"
             >
-              <option value="ALL" className="dark:bg-slate-800">
+              <option value="ALL" className="dark:bg-[#1C1C1E]">
                 Todos os Times
               </option>
               {teams.map((t) => (
-                <option key={t.id} value={t.id} className="dark:bg-slate-800">
+                <option key={t.id} value={t.id} className="dark:bg-[#1C1C1E]">
                   {t.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Ícone Discreto do Excel (Sem texto, ao lado do filtro de time) */}
+          {/* Botão Circular de Exportação Excel */}
           <button
             type="button"
             onClick={handleExportExcel}
             disabled={filteredList.length === 0}
             title="Exportar para Excel (.csv)"
             aria-label="Exportar para Excel"
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-800/60 transition shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-9 h-9 rounded-full border border-black/[0.06] dark:border-white/10 bg-neutral-100/90 dark:bg-[#2C2C2E] hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 active:scale-95 transition-all duration-200 ease-out disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
           >
             <FileSpreadsheet className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Conteúdo da Tabela / Data Grid */}
+      {/* Conteúdo em Formato "Grouped Inset List View" (macOS Sequoia & iOS) */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mb-3" />
+        <div className="apple-grouped-inset flex flex-col items-center justify-center py-16 text-neutral-400">
+          <Loader2 className="w-7 h-7 animate-spin text-[#0071E3] dark:text-[#0A84FF] mb-3" />
           <p className="text-sm font-medium">Carregando folgas da equipe...</p>
         </div>
       ) : filteredList.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center mb-4">
-            <Calendar className="w-7 h-7" />
+        <div className="apple-grouped-inset flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] text-neutral-400 flex items-center justify-center mb-4">
+            <Calendar className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">
+          <h3 className="text-base font-semibold text-[#1D1D1F] dark:text-neutral-200">
             {selectedTeamFilter !== 'ALL'
               ? 'Nenhuma folga encontrada para o time e período selecionados'
               : activeTab === 'upcoming'
                 ? 'Nenhuma folga futura agendada'
                 : 'Nenhum histórico encontrado para o período selecionado'}
           </h3>
-          <p className="text-sm text-slate-400 dark:text-slate-500 max-w-sm mt-1">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-sm mt-1">
             {activeTab === 'past'
               ? 'Experimente alternar o filtro de período (ex: 90 Dias ou Ano Inteiro) ou selecionar "Todos os Times".'
               : 'Todas as escalas estão completas e não há membros da equipe ausentes nos próximos dias.'}
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="apple-grouped-inset p-2 overflow-x-auto">
+          <table className="w-full text-left border-separate border-spacing-y-1">
             <thead>
-              <tr className="bg-slate-50/75 dark:bg-slate-800/40 border-b border-slate-200/70 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3.5 px-6">Colaborador</th>
-                <th className="py-3.5 px-6">Time</th>
-                <th className="py-3.5 px-6">Data</th>
-                <th className="py-3.5 px-6">Tipo</th>
-                <th className="py-3.5 px-6">Saldo Hoje</th>
-                <th className="py-3.5 px-6">Descrição</th>
-                {!isReadOnly && <th className="py-3.5 px-6 text-right">Ações</th>}
+              <tr className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
+                <th className="py-1.5 px-3">Colaborador</th>
+                <th className="py-1.5 px-2.5">Time</th>
+                <th className="py-1.5 px-2.5">Data</th>
+                <th className="py-1.5 px-2.5">Período</th>
+                <th className="py-1.5 px-2.5">Status</th>
+                <th className="py-1.5 px-2.5">Saldo Hoje</th>
+                <th className="py-1.5 px-3">Motivo</th>
+                {!isReadOnly && <th className="py-1.5 px-2.5 text-right">Ações</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+            <tbody className="text-xs">
               {filteredList.map((item) => {
                 const isItemDeleting = deletingId === item.id;
                 const isConfirming = confirmDeleteId === item.id;
                 const employeeName = item.employees?.name || 'Não identificado';
                 const teamName = item.employees?.teams?.name;
                 const balanceInfo = balanceByEmployeeId.get(item.employee_id);
+                const hasDateConflict = (countByDate.get(item.date) || 0) > 1;
 
                 return (
                   <tr
                     key={item.id}
-                    className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors group"
+                    className="bg-white/90 dark:bg-[#2C2C2E]/85 hover:bg-white dark:hover:bg-[#3A3A3C]/90 shadow-apple-sm transition-all duration-200 ease-out group"
                   >
                     {/* Colaborador */}
-                    <td className="py-4 px-6 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                    <td className="py-2.5 px-3 font-semibold text-[#1D1D1F] dark:text-white whitespace-nowrap first:rounded-l-xl">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-b from-[#0071E3]/15 to-[#0071E3]/25 dark:from-[#0A84FF]/20 dark:to-[#0A84FF]/30 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center font-semibold text-[10px] uppercase flex-shrink-0">
                           {employeeName.charAt(0)}
                         </div>
-                        <span>{employeeName}</span>
+                        <span className="tracking-tight text-xs">{employeeName}</span>
                       </div>
                     </td>
 
                     {/* Time / Projeto */}
-                    <td className="py-4 px-6 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 whitespace-nowrap">
                       {teamName ? (
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${getTeamBadgeStyle(teamName)}`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${getTeamBadgeStyle(teamName)}`}
                         >
-                          <Building2 className="w-3 h-3 opacity-70" />
+                          <Building2 className="w-3 h-3 opacity-75" />
                           {teamName}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-400 dark:text-slate-500 italic">
-                          Sem time
-                        </span>
+                        <span className="text-[11px] text-neutral-400 italic">Sem time</span>
                       )}
                     </td>
 
                     {/* Data formatada DD/MM/YYYY */}
-                    <td className="py-4 px-6 text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                        <span className="font-medium font-mono text-sm">
+                    <td className="py-2.5 px-2.5 text-[#1D1D1F] dark:text-neutral-200 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+                        <span className="font-medium font-mono text-xs">
                           {formatDateBR(item.date)}
                         </span>
                       </div>
                     </td>
 
-                    {/* Tipo: Dia Inteiro ou X horas */}
-                    <td className="py-4 px-6 whitespace-nowrap">
+                    {/* Período: Dia Inteiro ou X horas */}
+                    <td className="py-2.5 px-2.5 whitespace-nowrap">
                       {item.is_full_day ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
-                          <Sun className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-                          Dia Inteiro (08:00)
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/12 dark:bg-emerald-400/15 text-emerald-700 dark:text-emerald-300">
+                          <Sun className="w-3 h-3 text-emerald-500" />
+                          Integral (08:00)
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
-                          <Clock className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF]">
+                          <Clock className="w-3 h-3" />
                           {item.hours} {item.hours === 1 ? 'hora' : 'horas'}
                         </span>
                       )}
                     </td>
 
+                    {/* Status Badge (Aprovado / Conflito) */}
+                    <td className="py-2.5 px-2.5 whitespace-nowrap">
+                      {hasDateConflict ? (
+                        <span
+                          title="Mais de um colaborador com folga nesta mesma data"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          Conflito
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-700 dark:text-emerald-300">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Aprovado
+                        </span>
+                      )}
+                    </td>
+
                     {/* Saldo Hoje do Colaborador */}
-                    <td className="py-4 px-6 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 whitespace-nowrap">
                       {balanceInfo && balanceInfo.hasBaseBalance ? (
                         <span
                           title={`Saldo Base: ${balanceInfo.baseHHMM}h${balanceInfo.baseDate ? ` (Ref: ${formatDateBR(balanceInfo.baseDate)})` : ''} | Abatido pós data-base: ${balanceInfo.deductedHHMM}h`}
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold ${
                             balanceInfo.currentBalanceMinutes < 0
-                              ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60'
+                              ? 'bg-rose-500/12 text-rose-600 dark:text-rose-300'
                               : balanceInfo.currentBalanceMinutes > 0
-                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-neutral-500/10 text-neutral-600 dark:text-neutral-400'
                           }`}
                         >
                           {balanceInfo.currentBalanceHHMM}h
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-400 dark:text-slate-500 italic">-</span>
+                        <span className="text-[11px] text-neutral-400 italic">-</span>
                       )}
                     </td>
 
                     {/* Descrição */}
-                    <td className="py-4 px-6 text-slate-600 dark:text-slate-300 max-w-xs truncate">
+                    <td
+                      className={`py-2.5 px-3 text-neutral-500 dark:text-neutral-300 max-w-[200px] truncate ${
+                        isReadOnly ? 'last:rounded-r-xl' : ''
+                      }`}
+                    >
                       {item.description ? (
-                        <span title={item.description}>{item.description}</span>
-                      ) : (
-                        <span className="text-slate-400 dark:text-slate-500 italic text-xs">
-                          Sem descrição
+                        <span title={item.description} className="text-xs">
+                          {item.description}
                         </span>
+                      ) : (
+                        <span className="text-neutral-400 italic text-[11px]">Sem descrição</span>
                       )}
                     </td>
 
                     {/* Ações */}
                     {!isReadOnly && (
-                      <td className="py-4 px-6 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-2.5 text-right whitespace-nowrap last:rounded-r-xl">
                         {isConfirming ? (
-                          <div className="flex items-center justify-end gap-2 animate-in fade-in">
-                            <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold mr-1">
+                          <div className="flex items-center justify-end gap-1 animate-in fade-in duration-200">
+                            <span className="text-[11px] text-rose-600 dark:text-rose-400 font-medium mr-0.5">
                               Excluir?
                             </span>
                             <button
                               onClick={() => handleDelete(item.id, employeeName)}
                               disabled={isItemDeleting}
-                              className="px-2.5 py-1 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition shadow-sm"
+                              className="px-2.5 py-0.5 text-[11px] font-semibold bg-rose-500 hover:bg-rose-600 text-white rounded-full transition duration-200"
                             >
                               Sim
                             </button>
                             <button
                               onClick={() => setConfirmDeleteId(null)}
                               disabled={isItemDeleting}
-                              className="px-2 py-1 text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition"
+                              className="px-2 py-0.5 text-[11px] font-medium bg-neutral-200/70 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 rounded-full transition duration-200"
                             >
                               Não
                             </button>
@@ -416,12 +451,12 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                             onClick={() => setConfirmDeleteId(item.id)}
                             disabled={isItemDeleting}
                             title="Excluir folga"
-                            className="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-full text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-200 ease-out"
                           >
                             {isItemDeleting ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
                             ) : (
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             )}
                           </button>
                         )}

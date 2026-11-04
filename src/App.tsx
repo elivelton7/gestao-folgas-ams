@@ -68,7 +68,6 @@ function MainApp() {
 
   const handleUpdateEmployee = async (payload: UpdateEmployeePayload) => {
     const updated = await updateEmployee(payload);
-    // Caso nome ou time tenha mudado, sincroniza listas de folgas e férias
     if (payload.name !== undefined || payload.team_id !== undefined) {
       refreshTimeOffs();
       refreshVacations();
@@ -86,7 +85,6 @@ function MainApp() {
     }>
   ) => {
     const count = await bulkUpdateBalances(items);
-    // Sincroniza listas de folgas e férias para refletir os nomes equalizados com a planilha
     refreshTimeOffs();
     refreshVacations();
     return count;
@@ -107,9 +105,9 @@ function MainApp() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
-        <p className="text-sm font-medium">Verificando autorização...</p>
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-black flex flex-col items-center justify-center text-neutral-500">
+        <Loader2 className="w-7 h-7 animate-spin text-[#0071E3] dark:text-[#0A84FF] mb-3" />
+        <p className="text-sm font-medium tracking-tight">Verificando autorização...</p>
       </div>
     );
   }
@@ -119,7 +117,7 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-black text-[#1D1D1F] dark:text-[#F5F5F7] flex flex-col transition-colors duration-200 ease-out">
       <Header
         activeView={activeView}
         onViewChange={setActiveView}
@@ -127,29 +125,27 @@ function MainApp() {
         onOpenManagementModal={() => setIsManagementModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
         {/* Banner instrutivo caso o Supabase ainda não tenha sido configurado no .env */}
         {!isSupabaseConfigured && (
-          <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 shadow-sm transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
+          <div className="p-5 rounded-3xl bg-amber-500/10 dark:bg-amber-400/10 backdrop-blur-md border border-amber-500/20 text-amber-950 dark:text-amber-200 shadow-apple-sm transition-all duration-200 ease-out">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-700 dark:text-amber-300">
                 <Database className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-amber-950 dark:text-amber-100">
+                <h3 className="text-sm font-semibold tracking-tight text-amber-950 dark:text-amber-100">
                   Configuração Inicial do Supabase Necessária
                 </h3>
-                <p className="text-sm text-amber-800 dark:text-amber-300/90 mt-1">
-                  Para persistir as folgas, colaboradores e times em seu projeto, execute o script SQL contido em{' '}
-                  <code className="bg-amber-100/80 dark:bg-amber-900/60 px-1.5 py-0.5 rounded font-mono text-xs font-semibold">
+                <p className="text-xs text-amber-800/90 dark:text-amber-300/80 mt-1 leading-relaxed">
+                  Execute o script SQL contido em{' '}
+                  <code className="bg-black/[0.06] dark:bg-white/10 px-1.5 py-0.5 rounded-md font-mono text-[11px] font-medium">
                     supabase-schema.sql
                   </code>{' '}
                   no <strong>SQL Editor do Supabase</strong> e preencha as variáveis de ambiente no arquivo{' '}
-                  <code className="bg-amber-100/80 dark:bg-amber-900/60 px-1.5 py-0.5 rounded font-mono text-xs font-semibold">
+                  <code className="bg-black/[0.06] dark:bg-white/10 px-1.5 py-0.5 rounded-md font-mono text-[11px] font-medium">
                     .env
-                  </code>{' '}
-                  (<code className="text-xs font-mono">VITE_SUPABASE_URL</code> e{' '}
-                  <code className="text-xs font-mono">VITE_SUPABASE_ANON_KEY</code>).
+                  </code>.
                 </p>
               </div>
             </div>
@@ -158,16 +154,16 @@ function MainApp() {
 
         {/* Banner Informativo de Perfil Consulta (AMS-CLICK) */}
         {isReadOnly && (
-          <div className="mb-8 p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 shadow-xs transition-colors">
+          <div className="p-5 rounded-3xl bg-white/75 dark:bg-[#1C1C1E]/80 backdrop-blur-xl border border-black/[0.06] dark:border-white/10 shadow-apple-sm transition-all duration-200 ease-out">
             <div className="flex items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex-shrink-0">
+              <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex-shrink-0">
                 <Eye className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-amber-950 dark:text-amber-100">
+                <h3 className="text-sm font-semibold tracking-tight text-[#1D1D1F] dark:text-white">
                   Modo Consulta Ativo ({user?.username})
                 </h3>
-                <p className="text-xs text-amber-800/90 dark:text-amber-300/80 mt-0.5">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                   {activeView === 'folgas'
                     ? 'Você possui permissão para consultar o quadro de folgas, saldos e exportar planilhas para o Excel. O cadastro e exclusão são restritos ao perfil AMS-ADM.'
                     : 'Você possui permissão para consultar a programação de férias e exportar planilhas para o Excel. O agendamento e exclusão de férias são restritos ao perfil AMS-ADM.'}
@@ -181,8 +177,7 @@ function MainApp() {
         {/* PÁGINA: QUADRO DE FOLGAS                 */}
         {/* ========================================= */}
         {activeView === 'folgas' && (
-          <div className="animate-in fade-in duration-200">
-            {/* Formulário de Cadastro Superior de Folgas (Apenas Administrador) */}
+          <div className="space-y-8 animate-in fade-in duration-200 ease-out">
             {isAdmin && (
               <TimeOffForm
                 employees={employees}
@@ -196,7 +191,6 @@ function MainApp() {
               />
             )}
 
-            {/* Data Grid / Tabela Inferior de Folgas com Filtro por Time e Saldo Hoje */}
             <TimeOffList
               timeOffs={timeOffs}
               teams={teams}
@@ -214,8 +208,7 @@ function MainApp() {
         {/* PÁGINA: PROGRAMAÇÃO DE FÉRIAS             */}
         {/* ========================================= */}
         {activeView === 'ferias' && (
-          <div className="animate-in fade-in duration-200">
-            {/* Formulário de Programação de Férias (Apenas Administrador) */}
+          <div className="space-y-8 animate-in fade-in duration-200 ease-out">
             {isAdmin && (
               <VacationForm
                 employees={employees}
@@ -229,7 +222,6 @@ function MainApp() {
               />
             )}
 
-            {/* Data Grid / Tabela de Férias com Filtros e Exportação Excel */}
             <VacationList
               vacations={vacations}
               teams={teams}
@@ -278,8 +270,8 @@ function MainApp() {
         )}
       </main>
 
-      <footer className="py-6 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-center text-xs text-slate-400 dark:text-slate-500 transition-colors duration-200">
-        <p>Gestão de Folgas, Banco de Horas e Férias - Time AMS</p>
+      <footer className="py-6 border-t border-black/[0.05] dark:border-white/[0.08] bg-white/50 dark:bg-[#1C1C1E]/40 backdrop-blur-md text-center text-xs text-neutral-400 dark:text-neutral-500 transition-colors duration-200 ease-out">
+        <p className="font-medium tracking-tight">Gestão de Folgas, Banco de Horas e Férias • Time AMS</p>
       </footer>
     </div>
   );

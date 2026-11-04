@@ -2,11 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-50 text-slate-900 min-h-screen antialiased transition-colors duration-200;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+@layer base {
+  body {
+    background-color: #F5F5F7;
+    color: #1D1D1F;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+    @apply min-h-screen transition-colors duration-200 ease-out;
+  }
+
+  html.dark body {
+    background-color: #000000;
+    color: #F5F5F7;
+  }
+
+  /* Estilo SF Symbols: traço fino 1.5px em todos os ícones Lucide */
+  svg.lucide {
+    stroke-width: 1.5px;
+  }
 }
 
-html.dark body {
-  @apply bg-slate-950 text-slate-100;
+@layer components {
+  /* Superfícies Glassmorphism macOS Sequoia / iOS */
+  .apple-glass-card {
+    @apply bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-xl border border-black/[0.06] dark:border-white/10 shadow-apple-md rounded-3xl transition-all duration-200 ease-out;
+  }
+
+  .apple-grouped-inset {
+    @apply bg-[#F5F5F7]/70 dark:bg-black/40 border border-black/[0.05] dark:border-white/[0.08] rounded-2xl;
+  }
+
+  .apple-input {
+    @apply w-full px-4 py-2.5 rounded-xl bg-neutral-100/90 dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/10 text-[#1D1D1F] dark:text-[#F5F5F7] placeholder-neutral-400 dark:placeholder-neutral-500 text-sm transition-all duration-200 ease-out focus:outline-none focus:bg-white dark:focus:bg-[#3A3A3C] focus:ring-2 focus:ring-[#0071E3]/25 dark:focus:ring-[#0A84FF]/30 focus:border-[#0071E3] dark:focus:border-[#0A84FF];
+  }
+
+  .apple-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold text-white bg-[#0071E3] dark:bg-[#0A84FF] hover:brightness-110 active:scale-[0.98] shadow-sm transition-all duration-200 ease-out disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .apple-btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-[#1D1D1F] dark:text-neutral-200 bg-neutral-100/90 dark:bg-[#2C2C2E] hover:bg-neutral-200/80 dark:hover:bg-[#3A3A3C] border border-black/[0.06] dark:border-white/10 active:scale-[0.98] transition-all duration-200 ease-out;
+  }
+
+  .apple-segmented-control {
+    @apply inline-flex items-center p-1 rounded-full bg-neutral-200/70 dark:bg-[#2C2C2E] border border-black/[0.04] dark:border-white/[0.06];
+  }
+
+  .apple-segmented-item {
+    @apply flex items-center gap-2 px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 ease-out;
+  }
+
+  .apple-segmented-item-active {
+    @apply bg-white dark:bg-[#3A3A3C] text-[#1D1D1F] dark:text-white shadow-apple-sm font-semibold;
+  }
+
+  .apple-segmented-item-inactive {
+    @apply text-neutral-500 dark:text-neutral-400 hover:text-[#1D1D1F] dark:hover:text-neutral-200;
+  }
 }
