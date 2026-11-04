@@ -12,7 +12,6 @@ import {
   Calendar,
   Clock,
   Sun,
-  CheckCircle2,
 } from 'lucide-react';
 import type { VacationWithEmployee, Team } from '../types/database';
 import {
@@ -331,7 +330,6 @@ export const VacationList: React.FC<VacationListProps> = ({
                 <th className="py-1.5 px-2.5">Data de Início</th>
                 <th className="py-1.5 px-2.5">Data de Volta</th>
                 <th className="py-1.5 px-2.5">Duração</th>
-                <th className="py-1.5 px-2.5">Status</th>
                 <th className="py-1.5 px-3">Observação</th>
                 {!isReadOnly && <th className="py-1.5 px-2.5 text-right">Ações</th>}
               </tr>
@@ -395,29 +393,17 @@ export const VacationList: React.FC<VacationListProps> = ({
 
                     {/* Duração / Dias de Férias */}
                     <td className="py-2.5 px-2.5 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-neutral-500/10 dark:bg-white/10 text-[#1D1D1F] dark:text-neutral-200">
-                        <Clock className="w-3 h-3 text-neutral-400" />
-                        {item.days} {item.days === 1 ? 'dia' : 'dias'}
-                      </span>
-                    </td>
-
-                    {/* Status Badge */}
-                    <td className="py-2.5 px-2.5 whitespace-nowrap">
-                      {isCurrent ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                          <Sun className="w-3 h-3" />
-                          Em Curso
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-neutral-500/10 dark:bg-white/10 text-[#1D1D1F] dark:text-neutral-200">
+                          <Clock className="w-3 h-3 text-neutral-400" />
+                          {item.days} {item.days === 1 ? 'dia' : 'dias'}
                         </span>
-                      ) : activeTab === 'upcoming' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/12 text-[#0071E3] dark:text-[#0A84FF]">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Programada
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-neutral-500/10 text-neutral-500 dark:text-neutral-400">
-                          Concluída
-                        </span>
-                      )}
+                        {isCurrent && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                            Em Curso
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Observação */}

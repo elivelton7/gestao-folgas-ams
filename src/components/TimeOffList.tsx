@@ -10,8 +10,6 @@ import {
   Filter,
   Building2,
   FileSpreadsheet,
-  CheckCircle2,
-  AlertTriangle,
 } from 'lucide-react';
 import type { TimeOffWithEmployee, Team, Employee } from '../types/database';
 import { formatDateBR, isUpcoming, isWithinPastFilter } from '../utils/date';
@@ -58,15 +56,6 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
     });
     return map;
   }, [employees, timeOffs]);
-
-  // Mapa de contagem por data para indicar badge de "Conflito" ou "Aprovado"
-  const countByDate = useMemo(() => {
-    const map = new Map<string, number>();
-    timeOffs.forEach((item) => {
-      map.set(item.date, (map.get(item.date) || 0) + 1);
-    });
-    return map;
-  }, [timeOffs]);
 
   // Filtra por data (próximas vs passadas com período) e por time selecionado
   const filteredList = useMemo(() => {
@@ -300,10 +289,9 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                 <th className="py-1.5 px-3">Colaborador</th>
                 <th className="py-1.5 px-2.5">Time</th>
                 <th className="py-1.5 px-2.5">Data</th>
-                <th className="py-1.5 px-2.5">Período</th>
-                <th className="py-1.5 px-2.5">Status</th>
+                <th className="py-1.5 px-2.5">Tipo</th>
                 <th className="py-1.5 px-2.5">Saldo Hoje</th>
-                <th className="py-1.5 px-3">Motivo</th>
+                <th className="py-1.5 px-3">Descrição</th>
                 {!isReadOnly && <th className="py-1.5 px-2.5 text-right">Ações</th>}
               </tr>
             </thead>
@@ -314,7 +302,6 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                 const employeeName = item.employees?.name || 'Não identificado';
                 const teamName = item.employees?.teams?.name;
                 const balanceInfo = balanceByEmployeeId.get(item.employee_id);
-                const hasDateConflict = (countByDate.get(item.date) || 0) > 1;
 
                 return (
                   <tr
@@ -355,35 +342,17 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
                       </div>
                     </td>
 
-                    {/* Período: Dia Inteiro ou X horas */}
+                    {/* Tipo: Dia Inteiro ou X horas */}
                     <td className="py-2.5 px-2.5 whitespace-nowrap">
                       {item.is_full_day ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/12 dark:bg-emerald-400/15 text-emerald-700 dark:text-emerald-300">
                           <Sun className="w-3 h-3 text-emerald-500" />
-                          Integral (08:00)
+                          Dia Inteiro (08:00)
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF]">
                           <Clock className="w-3 h-3" />
                           {item.hours} {item.hours === 1 ? 'hora' : 'horas'}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Status Badge (Aprovado / Conflito) */}
-                    <td className="py-2.5 px-2.5 whitespace-nowrap">
-                      {hasDateConflict ? (
-                        <span
-                          title="Mais de um colaborador com folga nesta mesma data"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                        >
-                          <AlertTriangle className="w-3 h-3" />
-                          Conflito
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-700 dark:text-emerald-300">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Aprovado
                         </span>
                       )}
                     </td>
