@@ -81,14 +81,24 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
       });
   }, [timeOffs, activeTab, selectedTeamFilter, pastFilter]);
 
+  const matchesTeam = (item: TimeOffWithEmployee) => {
+    if (selectedTeamFilter === 'ALL') return true;
+    const teamId = item.employees?.team_id || item.employees?.teams?.id;
+    const teamName = item.employees?.teams?.name?.toLowerCase();
+    return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
+  };
+
   const upcomingCount = useMemo(
-    () => timeOffs.filter((item) => isUpcoming(item.date)).length,
-    [timeOffs]
+    () => timeOffs.filter((item) => matchesTeam(item) && isUpcoming(item.date)).length,
+    [timeOffs, selectedTeamFilter]
   );
 
   const pastCount = useMemo(
-    () => timeOffs.filter((item) => !isUpcoming(item.date)).length,
-    [timeOffs]
+    () =>
+      timeOffs.filter(
+        (item) => matchesTeam(item) && !isUpcoming(item.date) && isWithinPastFilter(item.date, pastFilter)
+      ).length,
+    [timeOffs, selectedTeamFilter, pastFilter]
   );
 
   const handleDelete = async (id: string, employeeName: string) => {

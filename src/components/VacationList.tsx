@@ -61,7 +61,7 @@ export const VacationList: React.FC<VacationListProps> = ({
           if (!isVacationUpcoming(item.start_date)) return false;
         } else {
           if (!isVacationPast(item.return_date)) return false;
-          if (!isWithinPastFilter(item.return_date, pastFilter)) return false;
+          if (!isWithinPastFilter(item.return_date, pastFilter, true)) return false;
         }
 
         if (selectedTeamFilter === 'ALL') return true;
@@ -81,19 +81,36 @@ export const VacationList: React.FC<VacationListProps> = ({
       });
   }, [vacations, activeTab, selectedTeamFilter, pastFilter]);
 
+  const matchesTeam = (item: VacationWithEmployee) => {
+    if (selectedTeamFilter === 'ALL') return true;
+    const teamId = item.employees?.team_id || item.employees?.teams?.id;
+    const teamName = item.employees?.teams?.name?.toLowerCase();
+    return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
+  };
+
   const currentCount = useMemo(
-    () => vacations.filter((item) => isVacationCurrent(item.start_date, item.return_date)).length,
-    [vacations]
+    () =>
+      vacations.filter(
+        (item) => matchesTeam(item) && isVacationCurrent(item.start_date, item.return_date)
+      ).length,
+    [vacations, selectedTeamFilter]
   );
 
   const upcomingCount = useMemo(
-    () => vacations.filter((item) => isVacationUpcoming(item.start_date)).length,
-    [vacations]
+    () =>
+      vacations.filter((item) => matchesTeam(item) && isVacationUpcoming(item.start_date)).length,
+    [vacations, selectedTeamFilter]
   );
 
   const pastCount = useMemo(
-    () => vacations.filter((item) => isVacationPast(item.return_date)).length,
-    [vacations]
+    () =>
+      vacations.filter(
+        (item) =>
+          matchesTeam(item) &&
+          isVacationPast(item.return_date) &&
+          isWithinPastFilter(item.return_date, pastFilter, true)
+      ).length,
+    [vacations, selectedTeamFilter, pastFilter]
   );
 
   const handleDelete = async (id: string, employeeName: string) => {

@@ -5,7 +5,7 @@
 
 export function formatDateBR(dateString: string): string {
   if (!dateString) return '';
-  
+
   // Dividir diretamente a string YYYY-MM-DD evita a conversão indevida de fuso horário UTC -> UTC-3
   const [year, month, day] = dateString.split('-');
   if (!year || !month || !day) return dateString;
@@ -42,9 +42,13 @@ export function getStartOfYearDateString(): string {
 
 export type PastDateFilter = '30d' | '90d' | 'year' | 'all';
 
-export function isWithinPastFilter(dateString: string, filter: PastDateFilter): boolean {
+export function isWithinPastFilter(
+  dateString: string,
+  filter: PastDateFilter,
+  includeToday: boolean = false
+): boolean {
   const today = getTodayDateString();
-  if (dateString >= today) return false;
+  if (includeToday ? dateString > today : dateString >= today) return false;
 
   switch (filter) {
     case '30d':
@@ -77,7 +81,7 @@ export function calculateReturnDate(startDateString: string, daysCount: number):
   // Se cair no sábado (dia 6), volta na segunda-feira (+2 dias)
   if (date.getDay() === 6) {
     date.setDate(date.getDate() + 2);
-  } 
+  }
   // Se cair no domingo (dia 0), volta na segunda-feira (+1 dia)
   else if (date.getDay() === 0) {
     date.setDate(date.getDate() + 1);
@@ -112,4 +116,3 @@ export function isVacationPast(returnDateString: string): boolean {
   const today = getTodayDateString();
   return returnDateString <= today;
 }
-

@@ -206,8 +206,9 @@ export function useVacations() {
     return vacations.filter((item) => {
       if (excludeEmployeeId && item.employee_id === excludeEmployeeId) return false;
 
-      // Há sobreposição se: item.start_date <= returnDate E item.return_date >= startDate
-      return item.start_date <= returnDate && item.return_date >= startDate;
+      // Como return_date é o dia de retorno ao trabalho, há sobreposição de ausência quando:
+      // item.start_date < returnDate E item.return_date > startDate
+      return item.start_date < returnDate && item.return_date > startDate;
     });
   };
 
