@@ -72,7 +72,7 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
   }, [teams, selectedTeamIds]);
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative z-50" ref={containerRef}>
       <div
         className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border transition-all duration-200 ease-out ${
           !isAllSelected
@@ -128,7 +128,7 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
 
       {/* Popover estilo macOS Sequoia */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white/95 dark:bg-[#2C2C2E]/95 backdrop-blur-xl shadow-xl border border-black/[0.08] dark:border-white/10 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#242426] shadow-2xl border border-black/[0.08] dark:border-white/15 p-2 z-[100] animate-in fade-in zoom-in-95 duration-150">
           <div className="px-2.5 py-1.5 flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
               Filtrar Equipes

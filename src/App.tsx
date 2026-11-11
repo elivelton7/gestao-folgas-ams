@@ -298,7 +298,7 @@ function MainApp() {
         )}
       </main>
 
-      <footer className="py-6 border-t border-black/[0.05] dark:border-white/[0.08] bg-white/50 dark:bg-[#1C1C1E]/40 backdrop-blur-md text-center text-xs text-neutral-400 dark:text-neutral-500 transition-colors duration-200 ease-out">
+      <footer className="relative z-0 py-6 border-t border-black/[0.05] dark:border-white/[0.08] bg-white/50 dark:bg-[#1C1C1E]/40 text-center text-xs text-neutral-400 dark:text-neutral-500 transition-colors duration-200 ease-out">
         <p className="font-medium tracking-tight">Gestão de Folgas, Banco de Horas e Férias • Time AMS</p>
       </footer>
     </div>

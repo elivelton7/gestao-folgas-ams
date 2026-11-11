@@ -233,9 +233,9 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
   };
 
   return (
-    <div className="apple-glass-card p-6 sm:p-8 space-y-6">
+    <div className="relative z-20 apple-glass-card p-6 sm:p-8 space-y-6">
       {/* Cabeçalho da listagem, abas e filtros integrados */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 pb-2">
+      <div className="relative z-30 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 pb-2">
         <div>
           <h2 className="text-lg sm:text-xl font-semibold text-[#1D1D1F] dark:text-white tracking-tight">
             Quadro de Folgas
@@ -383,7 +383,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
           </p>
         </div>
       ) : (
-        <div className="apple-grouped-inset p-2 overflow-x-auto">
+        <div className="relative z-10 apple-grouped-inset p-2 overflow-x-auto">
           <table className="w-full text-left border-separate border-spacing-y-1">
             <thead>
               <tr className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
