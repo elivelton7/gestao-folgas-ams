@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Calendar,
   Clock,
@@ -7,9 +7,9 @@ import {
   CalendarDays,
   History,
   Sun,
-  Filter,
   Building2,
   FileSpreadsheet,
+  RefreshCw,
 } from 'lucide-react';
 import type { TimeOffWithEmployee, Team, Employee } from '../types/database';
 import { formatDateBR, isUpcoming, isWithinPastFilter } from '../utils/date';
@@ -18,6 +18,7 @@ import { exportTableToExcel } from '../utils/export';
 import { calculateEmployeeBalance } from '../utils/balance';
 import type { EmployeeBalanceSummary } from '../utils/balance';
 import { useAuth } from '../context/AuthContext';
+import { TeamMultiSelectFilter } from './TeamMultiSelectFilter';
 
 interface TimeOffListProps {
   timeOffs: TimeOffWithEmployee[];
@@ -26,11 +27,18 @@ interface TimeOffListProps {
   loading: boolean;
   deletingId: string | null;
   onDeleteTimeOff: (id: string) => Promise<void>;
+  onRefresh?: () => Promise<void>;
   onSuccessToast: (msg: string) => void;
   onErrorToast: (msg: string) => void;
 }
 
 type TabType = 'upcoming' | 'past';
+
+const STORAGE_KEYS = {
+  TAB: 'gestao-folgas-timeoff-tab',
+  TEAMS: 'gestao-folgas-timeoff-teams',
+  PAST_FILTER: 'gestao-folgas-timeoff-past-period',
+};
 
 export const TimeOffList: React.FC<TimeOffListProps> = ({
   timeOffs,
@@ -39,14 +47,94 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
   loading,
   deletingId,
   onDeleteTimeOff,
+  onRefresh,
   onSuccessToast,
   onErrorToast,
 }) => {
   const { isReadOnly } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('upcoming');
-  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL');
-  const [pastFilter, setPastFilter] = useState<PastDateFilter>('30d');
+
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TAB);
+      return saved === 'past' || saved === 'upcoming' ? saved : 'upcoming';
+    } catch {
+      return 'upcoming';
+    }
+  });
+
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TEAMS);
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [pastFilter, setPastFilter] = useState<PastDateFilter>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PAST_FILTER);
+      return saved === '30d' || saved === '90d' || saved === 'year' || saved === 'all'
+        ? saved
+        : '30d';
+    } catch {
+      return '30d';
+    }
+  });
+
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Persiste escolhas de filtros no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TAB, activeTab);
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(selectedTeamIds));
+    } catch {
+      // ignore storage errors
+    }
+  }, [selectedTeamIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.PAST_FILTER, pastFilter);
+    } catch {
+      // ignore storage errors
+    }
+  }, [pastFilter]);
+
+  // Limpa IDs de equipes que eventualmente não existam mais no cadastro
+  useEffect(() => {
+    if (teams.length > 0 && selectedTeamIds.length > 0) {
+      const validIds = new Set(teams.map((t) => t.id));
+      const filtered = selectedTeamIds.filter((id) => validIds.has(id));
+      if (filtered.length !== selectedTeamIds.length) {
+        setSelectedTeamIds(filtered);
+      }
+    }
+  }, [teams, selectedTeamIds]);
+
+  const handleRefreshGrid = async () => {
+    if (!onRefresh || isRefreshing) return;
+    try {
+      setIsRefreshing(true);
+      await onRefresh();
+      onSuccessToast('Quadro de folgas atualizado!');
+    } catch {
+      onErrorToast('Não foi possível atualizar os dados no momento.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Mapa rápido de Saldo Hoje por colaborador
   const balanceByEmployeeId = useMemo(() => {
@@ -57,7 +145,27 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
     return map;
   }, [employees, timeOffs]);
 
-  // Filtra por data (próximas vs passadas com período) e por time selecionado
+  // Nomes das equipes selecionadas (fallback caso algum registro compare por nome)
+  const selectedTeamNamesLower = useMemo(() => {
+    return teams
+      .filter((t) => selectedTeamIds.includes(t.id))
+      .map((t) => t.name.toLowerCase());
+  }, [teams, selectedTeamIds]);
+
+  const matchesTeam = useCallback(
+    (item: TimeOffWithEmployee) => {
+      if (selectedTeamIds.length === 0) return true;
+      const teamId = item.employees?.team_id || item.employees?.teams?.id;
+      const teamName = item.employees?.teams?.name?.toLowerCase();
+      return (
+        (teamId ? selectedTeamIds.includes(teamId) : false) ||
+        (teamName ? selectedTeamNamesLower.includes(teamName) : false)
+      );
+    },
+    [selectedTeamIds, selectedTeamNamesLower]
+  );
+
+  // Filtra por data (próximas vs passadas com período) e pelas equipes selecionadas
   const filteredList = useMemo(() => {
     return timeOffs
       .filter((item) => {
@@ -67,30 +175,18 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
           if (!isWithinPastFilter(item.date, pastFilter)) return false;
         }
 
-        if (selectedTeamFilter === 'ALL') return true;
-
-        const teamId = item.employees?.team_id || item.employees?.teams?.id;
-        const teamName = item.employees?.teams?.name?.toLowerCase();
-
-        return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
+        return matchesTeam(item);
       })
       .sort((a, b) => {
         return activeTab === 'upcoming'
           ? a.date.localeCompare(b.date)
           : b.date.localeCompare(a.date);
       });
-  }, [timeOffs, activeTab, selectedTeamFilter, pastFilter]);
-
-  const matchesTeam = (item: TimeOffWithEmployee) => {
-    if (selectedTeamFilter === 'ALL') return true;
-    const teamId = item.employees?.team_id || item.employees?.teams?.id;
-    const teamName = item.employees?.teams?.name?.toLowerCase();
-    return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
-  };
+  }, [timeOffs, activeTab, pastFilter, matchesTeam]);
 
   const upcomingCount = useMemo(
     () => timeOffs.filter((item) => matchesTeam(item) && isUpcoming(item.date)).length,
-    [timeOffs, selectedTeamFilter]
+    [timeOffs, matchesTeam]
   );
 
   const pastCount = useMemo(
@@ -98,7 +194,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
       timeOffs.filter(
         (item) => matchesTeam(item) && !isUpcoming(item.date) && isWithinPastFilter(item.date, pastFilter)
       ).length,
-    [timeOffs, selectedTeamFilter, pastFilter]
+    [timeOffs, matchesTeam, pastFilter]
   );
 
   const handleDelete = async (id: string, employeeName: string) => {
@@ -149,7 +245,7 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
           </p>
         </div>
 
-        {/* Controles estilo macOS: Segmented Control + Filtros + Export */}
+        {/* Controles estilo macOS: Segmented Control + Filtros + Refresh + Export */}
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="apple-segmented-control">
             <button
@@ -227,31 +323,26 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
             </div>
           )}
 
-          {/* Filtro por Time */}
-          <div className="flex items-center gap-2 bg-neutral-100/90 dark:bg-[#2C2C2E] px-3.5 py-2 rounded-full border border-black/[0.05] dark:border-white/10">
-            <Filter className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
-            <label
-              htmlFor="teamFilterSelect"
-              className="text-xs font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap"
+          {/* Filtro por Múltiplos Times */}
+          <TeamMultiSelectFilter
+            teams={teams}
+            selectedTeamIds={selectedTeamIds}
+            onChange={setSelectedTeamIds}
+          />
+
+          {/* Botão Circular de Atualizar Grid (Refresh) */}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefreshGrid}
+              disabled={loading || isRefreshing}
+              title="Atualizar dados do quadro"
+              aria-label="Atualizar dados do quadro"
+              className="w-9 h-9 rounded-full border border-black/[0.06] dark:border-white/10 bg-neutral-100/90 dark:bg-[#2C2C2E] hover:bg-[#0071E3]/15 dark:hover:bg-[#0A84FF]/20 text-[#0071E3] dark:text-[#0A84FF] active:scale-95 transition-all duration-200 ease-out disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
             >
-              Time:
-            </label>
-            <select
-              id="teamFilterSelect"
-              value={selectedTeamFilter}
-              onChange={(e) => setSelectedTeamFilter(e.target.value)}
-              className="bg-transparent text-xs sm:text-sm font-semibold text-[#1D1D1F] dark:text-neutral-200 focus:outline-none cursor-pointer pr-1"
-            >
-              <option value="ALL" className="dark:bg-[#1C1C1E]">
-                Todos os Times
-              </option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id} className="dark:bg-[#1C1C1E]">
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              <RefreshCw className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
 
           {/* Botão Circular de Exportação Excel */}
           <button
@@ -279,8 +370,8 @@ export const TimeOffList: React.FC<TimeOffListProps> = ({
             <Calendar className="w-6 h-6" />
           </div>
           <h3 className="text-base font-semibold text-[#1D1D1F] dark:text-neutral-200">
-            {selectedTeamFilter !== 'ALL'
-              ? 'Nenhuma folga encontrada para o time e período selecionados'
+            {selectedTeamIds.length > 0
+              ? 'Nenhuma folga encontrada para os times e período selecionados'
               : activeTab === 'upcoming'
                 ? 'Nenhuma folga futura agendada'
                 : 'Nenhum histórico encontrado para o período selecionado'}

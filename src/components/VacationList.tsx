@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Palmtree,
   RotateCcw,
@@ -6,12 +6,12 @@ import {
   Loader2,
   CalendarDays,
   History,
-  Filter,
   Building2,
   FileSpreadsheet,
   Calendar,
   Clock,
   Sun,
+  RefreshCw,
 } from 'lucide-react';
 import type { VacationWithEmployee, Team } from '../types/database';
 import {
@@ -24,6 +24,7 @@ import {
 import type { PastDateFilter } from '../utils/date';
 import { exportVacationsToExcel } from '../utils/export';
 import { useAuth } from '../context/AuthContext';
+import { TeamMultiSelectFilter } from './TeamMultiSelectFilter';
 
 interface VacationListProps {
   vacations: VacationWithEmployee[];
@@ -31,11 +32,18 @@ interface VacationListProps {
   loading: boolean;
   deletingId: string | null;
   onDeleteVacation: (id: string) => Promise<void>;
+  onRefresh?: () => Promise<void>;
   onSuccessToast: (msg: string) => void;
   onErrorToast: (msg: string) => void;
 }
 
 type TabType = 'current' | 'upcoming' | 'past';
+
+const STORAGE_KEYS = {
+  TAB: 'gestao-folgas-vacation-tab',
+  TEAMS: 'gestao-folgas-vacation-teams',
+  PAST_FILTER: 'gestao-folgas-vacation-past-period',
+};
 
 export const VacationList: React.FC<VacationListProps> = ({
   vacations,
@@ -43,14 +51,113 @@ export const VacationList: React.FC<VacationListProps> = ({
   loading,
   deletingId,
   onDeleteVacation,
+  onRefresh,
   onSuccessToast,
   onErrorToast,
 }) => {
   const { isReadOnly } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('current');
-  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('ALL');
-  const [pastFilter, setPastFilter] = useState<PastDateFilter>('30d');
+
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TAB);
+      return saved === 'current' || saved === 'upcoming' || saved === 'past' ? saved : 'current';
+    } catch {
+      return 'current';
+    }
+  });
+
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TEAMS);
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [pastFilter, setPastFilter] = useState<PastDateFilter>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PAST_FILTER);
+      return saved === '30d' || saved === '90d' || saved === 'year' || saved === 'all'
+        ? saved
+        : '30d';
+    } catch {
+      return '30d';
+    }
+  });
+
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Persiste escolhas de filtros no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TAB, activeTab);
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(selectedTeamIds));
+    } catch {
+      // ignore storage errors
+    }
+  }, [selectedTeamIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.PAST_FILTER, pastFilter);
+    } catch {
+      // ignore storage errors
+    }
+  }, [pastFilter]);
+
+  // Limpa IDs de equipes que eventualmente não existam mais no cadastro
+  useEffect(() => {
+    if (teams.length > 0 && selectedTeamIds.length > 0) {
+      const validIds = new Set(teams.map((t) => t.id));
+      const filtered = selectedTeamIds.filter((id) => validIds.has(id));
+      if (filtered.length !== selectedTeamIds.length) {
+        setSelectedTeamIds(filtered);
+      }
+    }
+  }, [teams, selectedTeamIds]);
+
+  const handleRefreshGrid = async () => {
+    if (!onRefresh || isRefreshing) return;
+    try {
+      setIsRefreshing(true);
+      await onRefresh();
+      onSuccessToast('Quadro de férias atualizado!');
+    } catch {
+      onErrorToast('Não foi possível atualizar os dados no momento.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const selectedTeamNamesLower = useMemo(() => {
+    return teams
+      .filter((t) => selectedTeamIds.includes(t.id))
+      .map((t) => t.name.toLowerCase());
+  }, [teams, selectedTeamIds]);
+
+  const matchesTeam = useCallback(
+    (item: VacationWithEmployee) => {
+      if (selectedTeamIds.length === 0) return true;
+      const teamId = item.employees?.team_id || item.employees?.teams?.id;
+      const teamName = item.employees?.teams?.name?.toLowerCase();
+      return (
+        (teamId ? selectedTeamIds.includes(teamId) : false) ||
+        (teamName ? selectedTeamNamesLower.includes(teamName) : false)
+      );
+    },
+    [selectedTeamIds, selectedTeamNamesLower]
+  );
 
   const filteredList = useMemo(() => {
     return vacations
@@ -64,12 +171,7 @@ export const VacationList: React.FC<VacationListProps> = ({
           if (!isWithinPastFilter(item.return_date, pastFilter, true)) return false;
         }
 
-        if (selectedTeamFilter === 'ALL') return true;
-
-        const teamId = item.employees?.team_id || item.employees?.teams?.id;
-        const teamName = item.employees?.teams?.name?.toLowerCase();
-
-        return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
+        return matchesTeam(item);
       })
       .sort((a, b) => {
         if (activeTab === 'current') {
@@ -79,27 +181,20 @@ export const VacationList: React.FC<VacationListProps> = ({
           ? a.start_date.localeCompare(b.start_date)
           : b.return_date.localeCompare(a.return_date);
       });
-  }, [vacations, activeTab, selectedTeamFilter, pastFilter]);
-
-  const matchesTeam = (item: VacationWithEmployee) => {
-    if (selectedTeamFilter === 'ALL') return true;
-    const teamId = item.employees?.team_id || item.employees?.teams?.id;
-    const teamName = item.employees?.teams?.name?.toLowerCase();
-    return teamId === selectedTeamFilter || teamName === selectedTeamFilter.toLowerCase();
-  };
+  }, [vacations, activeTab, pastFilter, matchesTeam]);
 
   const currentCount = useMemo(
     () =>
       vacations.filter(
         (item) => matchesTeam(item) && isVacationCurrent(item.start_date, item.return_date)
       ).length,
-    [vacations, selectedTeamFilter]
+    [vacations, matchesTeam]
   );
 
   const upcomingCount = useMemo(
     () =>
       vacations.filter((item) => matchesTeam(item) && isVacationUpcoming(item.start_date)).length,
-    [vacations, selectedTeamFilter]
+    [vacations, matchesTeam]
   );
 
   const pastCount = useMemo(
@@ -110,7 +205,7 @@ export const VacationList: React.FC<VacationListProps> = ({
           isVacationPast(item.return_date) &&
           isWithinPastFilter(item.return_date, pastFilter, true)
       ).length,
-    [vacations, selectedTeamFilter, pastFilter]
+    [vacations, matchesTeam, pastFilter]
   );
 
   const handleDelete = async (id: string, employeeName: string) => {
@@ -166,7 +261,7 @@ export const VacationList: React.FC<VacationListProps> = ({
           </p>
         </div>
 
-        {/* Controles: Segmented Control + Filtros + Excel */}
+        {/* Controles: Segmented Control + Filtros + Refresh + Excel */}
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="apple-segmented-control">
             {/* 1. Em Curso */}
@@ -269,31 +364,26 @@ export const VacationList: React.FC<VacationListProps> = ({
             </div>
           )}
 
-          {/* Filtro por Time */}
-          <div className="flex items-center gap-2 bg-neutral-100/90 dark:bg-[#2C2C2E] px-3.5 py-2 rounded-full border border-black/[0.05] dark:border-white/10">
-            <Filter className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
-            <label
-              htmlFor="vacationTeamFilterSelect"
-              className="text-xs font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap"
+          {/* Filtro por Múltiplos Times */}
+          <TeamMultiSelectFilter
+            teams={teams}
+            selectedTeamIds={selectedTeamIds}
+            onChange={setSelectedTeamIds}
+          />
+
+          {/* Botão Circular de Atualizar Grid (Refresh) */}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefreshGrid}
+              disabled={loading || isRefreshing}
+              title="Atualizar dados do quadro"
+              aria-label="Atualizar dados do quadro"
+              className="w-9 h-9 rounded-full border border-black/[0.06] dark:border-white/10 bg-neutral-100/90 dark:bg-[#2C2C2E] hover:bg-[#0071E3]/15 dark:hover:bg-[#0A84FF]/20 text-[#0071E3] dark:text-[#0A84FF] active:scale-95 transition-all duration-200 ease-out disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
             >
-              Time:
-            </label>
-            <select
-              id="vacationTeamFilterSelect"
-              value={selectedTeamFilter}
-              onChange={(e) => setSelectedTeamFilter(e.target.value)}
-              className="bg-transparent text-xs sm:text-sm font-semibold text-[#1D1D1F] dark:text-neutral-200 focus:outline-none cursor-pointer pr-1"
-            >
-              <option value="ALL" className="dark:bg-[#1C1C1E]">
-                Todos os Times
-              </option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id} className="dark:bg-[#1C1C1E]">
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              <RefreshCw className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
 
           {/* Botão Circular Excel */}
           <button
@@ -321,8 +411,8 @@ export const VacationList: React.FC<VacationListProps> = ({
             <Palmtree className="w-6 h-6" />
           </div>
           <h3 className="text-base font-semibold text-[#1D1D1F] dark:text-neutral-200">
-            {selectedTeamFilter !== 'ALL'
-              ? 'Nenhuma programação de férias encontrada para o time e visualização selecionados'
+            {selectedTeamIds.length > 0
+              ? 'Nenhuma programação de férias encontrada para os times e visualização selecionados'
               : activeTab === 'current'
                 ? 'Nenhum colaborador de férias atualmente'
                 : activeTab === 'upcoming'

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { TimeOffForm } from './components/TimeOffForm';
 import { TimeOffList } from './components/TimeOffList';
@@ -19,18 +19,36 @@ import { isSupabaseConfigured } from './lib/supabase';
 import { Database, Loader2, Eye } from 'lucide-react';
 import type { UpdateEmployeePayload, MergeEmployeesPayload } from './types/database';
 
+const ACTIVE_VIEW_STORAGE_KEY = 'gestao-folgas-active-view';
+
 function MainApp() {
   const { isAuthenticated, loading: authLoading, isAdmin, isReadOnly, user } = useAuth();
   const { showToast } = useToast();
-  const [activeView, setActiveView] = useState<'folgas' | 'ferias'>('folgas');
+  const [activeView, setActiveView] = useState<'folgas' | 'ferias'>(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
+      return saved === 'ferias' || saved === 'folgas' ? saved : 'folgas';
+    } catch {
+      return 'folgas';
+    }
+  });
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
 
-  const { teams, addTeam } = useTeams();
+  useEffect(() => {
+    try {
+      localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, activeView);
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeView]);
+
+  const { teams, addTeam, refreshTeams } = useTeams();
 
   const {
     employees,
     loading: loadingEmployees,
+    refreshEmployees,
     addEmployee,
     updateEmployee,
     bulkUpdateBalances,
@@ -65,6 +83,14 @@ function MainApp() {
     toggleActive,
     deleteRecipient,
   } = useReportRecipients();
+
+  const handleRefreshTimeOffGrid = async () => {
+    await Promise.all([refreshTimeOffs(), refreshEmployees(), refreshTeams()]);
+  };
+
+  const handleRefreshVacationGrid = async () => {
+    await Promise.all([refreshVacations(), refreshEmployees(), refreshTeams()]);
+  };
 
   const handleUpdateEmployee = async (payload: UpdateEmployeePayload) => {
     const updated = await updateEmployee(payload);
@@ -198,6 +224,7 @@ function MainApp() {
               loading={loadingTimeOffs}
               deletingId={deletingId}
               onDeleteTimeOff={deleteTimeOff}
+              onRefresh={handleRefreshTimeOffGrid}
               onSuccessToast={(msg) => showToast(msg, 'success')}
               onErrorToast={(msg) => showToast(msg, 'error')}
             />
@@ -228,6 +255,7 @@ function MainApp() {
               loading={loadingVacations}
               deletingId={deletingVacationId}
               onDeleteVacation={deleteVacation}
+              onRefresh={handleRefreshVacationGrid}
               onSuccessToast={(msg) => showToast(msg, 'success')}
               onErrorToast={(msg) => showToast(msg, 'error')}
             />
