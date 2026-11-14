@@ -1,17 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Filter, Check, ChevronDown, X, Building2 } from 'lucide-react';
+import { Filter, Check, ChevronDown, X, Building2, HelpCircle } from 'lucide-react';
 import type { Team } from '../types/database';
+
+export const NO_TEAM_FILTER_ID = '__NO_TEAM__';
 
 interface TeamMultiSelectFilterProps {
   teams: Team[];
   selectedTeamIds: string[];
   onChange: (selectedIds: string[]) => void;
+  includeNoTeamOption?: boolean;
+  label?: string;
+  align?: 'left' | 'right';
 }
 
 export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
   teams,
   selectedTeamIds,
   onChange,
+  includeNoTeamOption = false,
+  label = 'Time:',
+  align = 'right',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,11 +73,18 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
       .filter((t) => selectedTeamIds.includes(t.id))
       .map((t) => t.name);
 
+    if (includeNoTeamOption && selectedTeamIds.includes(NO_TEAM_FILTER_ID)) {
+      selectedNames.push('Sem Equipe');
+    }
+
+    if (selectedNames.length === 0) {
+      return 'Todos os Times';
+    }
     if (selectedNames.length <= 2) {
       return selectedNames.join(', ');
     }
     return `${selectedNames.length} times selecionados`;
-  }, [teams, selectedTeamIds]);
+  }, [teams, selectedTeamIds, includeNoTeamOption]);
 
   return (
     <div className="relative z-50" ref={containerRef}>
@@ -83,7 +98,7 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className="flex items-center gap-1.5 text-left focus:outline-none"
+          className="flex items-center gap-1.5 text-left focus:outline-none w-full"
         >
           <Filter
             className={`w-3.5 h-3.5 flex-shrink-0 ${
@@ -99,13 +114,13 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
                 : 'text-neutral-500 dark:text-neutral-400'
             }`}
           >
-            Time:
+            {label}
           </span>
-          <span className="text-xs sm:text-sm font-semibold max-w-[170px] truncate">
+          <span className="text-xs sm:text-sm font-semibold max-w-[180px] truncate">
             {summaryLabel}
           </span>
           <ChevronDown
-            className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${
+            className={`w-3.5 h-3.5 opacity-60 ml-auto transition-transform duration-200 ${
               isOpen ? 'rotate-180' : ''
             }`}
           />
@@ -119,7 +134,7 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
               onChange([]);
             }}
             title="Limpar filtro de equipes"
-            className="ml-0.5 p-0.5 rounded-full hover:bg-[#0071E3]/20 dark:hover:bg-[#0A84FF]/25 transition-colors"
+            className="ml-0.5 p-0.5 rounded-full hover:bg-[#0071E3]/20 dark:hover:bg-[#0A84FF]/25 transition-colors flex-shrink-0"
           >
             <X className="w-3 h-3" />
           </button>
@@ -128,10 +143,14 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
 
       {/* Popover estilo macOS Sequoia */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#242426] shadow-2xl border border-black/[0.08] dark:border-white/15 p-2 z-[100] animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className={`absolute ${
+            align === 'left' ? 'left-0' : 'right-0'
+          } mt-2 w-64 rounded-2xl bg-white dark:bg-[#242426] shadow-2xl border border-black/[0.08] dark:border-white/15 p-2 z-[100] animate-in fade-in zoom-in-95 duration-150`}
+        >
           <div className="px-2.5 py-1.5 flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-              Filtrar Equipes
+              Filtrar Equipes (Múltipla)
             </span>
             {!isAllSelected && (
               <button
@@ -199,6 +218,37 @@ export const TeamMultiSelectFilter: React.FC<TeamMultiSelectFilterProps> = ({
                 </button>
               );
             })}
+
+            {includeNoTeamOption && (
+              <>
+                <div className="my-1 border-t border-black/[0.05] dark:border-white/[0.06]" />
+                <button
+                  type="button"
+                  onClick={() => toggleTeam(NO_TEAM_FILTER_ID)}
+                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors ${
+                    selectedTeamIds.includes(NO_TEAM_FILTER_ID)
+                      ? 'bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF] font-semibold'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate pr-2">
+                    <HelpCircle className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
+                    <span className="truncate italic">Sem Equipe</span>
+                  </div>
+                  <div
+                    className={`w-4 h-4 rounded-md flex items-center justify-center border flex-shrink-0 transition-colors ${
+                      selectedTeamIds.includes(NO_TEAM_FILTER_ID)
+                        ? 'bg-[#0071E3] dark:bg-[#0A84FF] border-transparent text-white'
+                        : 'border-neutral-300 dark:border-neutral-600'
+                    }`}
+                  >
+                    {selectedTeamIds.includes(NO_TEAM_FILTER_ID) && (
+                      <Check className="w-3 h-3 stroke-[2.5]" />
+                    )}
+                  </div>
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

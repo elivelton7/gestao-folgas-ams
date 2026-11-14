@@ -1,6 +1,38 @@
-import type { IncomingMessage, ServerResponse } from 'http';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
+
+const TEAMS_TAG_REGEX = /\s*\|\|TEAMS:([^|]*)\|\|\s*$/;
+
+export function extractRecipientTeamIds(recipient: any): string[] {
+  if (Array.isArray(recipient?.team_ids) && recipient.team_ids.length > 0) {
+    return recipient.team_ids.map((s: string) => String(s).trim()).filter(Boolean);
+  }
+  const rawName = String(recipient?.name || '');
+  const match = rawName.match(TEAMS_TAG_REGEX);
+  if (match && match[1]) {
+    return match[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+export function filterRecordsByTeams(records: any[], teamIds: string[]): any[] {
+  if (!teamIds || teamIds.length === 0) return records || [];
+  const lowerSet = new Set(teamIds.map((t) => t.toLowerCase()));
+  return (records || []).filter((item: any) => {
+    const teamId = item.employees?.team_id || item.employees?.teams?.id || '';
+    const teamName = item.employees?.teams?.name || '';
+    if (!teamId && !teamName) {
+      return lowerSet.has('__no_team__');
+    }
+    return (
+      (teamId && lowerSet.has(String(teamId).toLowerCase())) ||
+      (teamName && lowerSet.has(String(teamName).toLowerCase()))
+    );
+  });
+}
 
 // Função para obter a data atual no fuso horário do Brasil (America/Sao_Paulo)
 function getBrazilDateString(): string {
@@ -25,11 +57,13 @@ export function buildReportEmailHtml({
   vacations,
   todayStr,
   frequencyLabel = 'Atualizado',
+  teamsScopeLabel = 'Todas as Equipes',
 }: {
   timeOffs: any[];
   vacations: any[];
   todayStr: string;
   frequencyLabel?: string;
+  teamsScopeLabel?: string;
 }) {
   // 1. Filtrar somente férias em curso e próximas (exclui passadas onde return_date <= todayStr)
   const validVacations = (vacations || [])
@@ -116,8 +150,8 @@ export function buildReportEmailHtml({
       <!-- Header -->
       <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 26px 20px; text-align: center; color: #ffffff;">
         <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">Gestão de Folgas & Férias • TIME AMS</h1>
-        <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.95;">Relatório da Escala de Ausências da Equipe (${frequencyLabel})</p>
-        <p style="margin: 4px 0 0 0; font-size: 11px; opacity: 0.75;">Data de referência: ${formattedToday}</p>
+        <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.95;">Relatório da Escala de Ausências (${frequencyLabel})</p>
+        <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9; font-weight: 600;">Equipes: ${teamsScopeLabel} • Ref: ${formattedToday}</p>
       </div>
 
       <div style="padding: 24px;">
@@ -140,7 +174,7 @@ export function buildReportEmailHtml({
               </tr>
             </thead>
             <tbody>
-              ${vacationRowsHtml || '<tr><td colspan="6" style="text-align: center; padding: 18px; color: #94a3b8; font-style: italic;">Nenhuma férias em curso ou próxima programada no momento.</td></tr>'}
+              ${vacationRowsHtml || '<tr><td colspan="6" style="text-align: center; padding: 18px; color: #94a3b8; font-style: italic;">Nenhuma férias em curso ou próxima programada para as equipes selecionadas.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -163,7 +197,7 @@ export function buildReportEmailHtml({
               </tr>
             </thead>
             <tbody>
-              ${timeOffRowsHtml || '<tr><td colspan="5" style="text-align: center; padding: 18px; color: #94a3b8; font-style: italic;">Nenhuma folga agendada no momento.</td></tr>'}
+              ${timeOffRowsHtml || '<tr><td colspan="5" style="text-align: center; padding: 18px; color: #94a3b8; font-style: italic;">Nenhuma folga agendada para as equipes selecionadas.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -206,7 +240,10 @@ export default async function handler(req: any, res: any) {
     }
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseKey =
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       return res.status(400).json({
@@ -229,8 +266,6 @@ export default async function handler(req: any, res: any) {
     } else if (queryFreq === 'ALL') {
       targetFrequencies = ['DAILY', 'WEEKLY', 'REALTIME'];
     } else {
-      // Disparo automático padrão (Vercel Cron diário às 08:00 BRT):
-      // Às segundas-feiras, dispara para DAILY e WEEKLY. Nos demais dias, dispara para DAILY.
       targetFrequencies = isMonday ? ['DAILY', 'WEEKLY'] : ['DAILY'];
     }
 
@@ -253,6 +288,11 @@ export default async function handler(req: any, res: any) {
         count: 0,
       });
     }
+
+    // Busca mapa de times para exibir os nomes das equipes filtradas no cabeçalho do e-mail
+    const { data: allTeams } = await supabase.from('teams').select('id, name');
+    const teamNameMap = new Map<string, string>();
+    (allTeams || []).forEach((t: any) => teamNameMap.set(t.id, t.name));
 
     // 2. Busca folgas futuras ou de hoje
     const { data: timeOffs, error: timeOffError } = await supabase
@@ -308,18 +348,12 @@ export default async function handler(req: any, res: any) {
       console.warn('Aviso: Tabela vacations pode não estar criada ou sem registros:', vacError.message);
     }
 
-    const frequencyLabel = targetFrequencies.includes('WEEKLY') && !targetFrequencies.includes('DAILY')
-      ? 'Relatório Semanal'
-      : targetFrequencies.includes('DAILY') && !targetFrequencies.includes('WEEKLY')
-      ? 'Relatório Diário'
-      : 'Relatório Diário / Semanal';
-
-    const emailHtml = buildReportEmailHtml({
-      timeOffs: timeOffs || [],
-      vacations: vacations || [],
-      todayStr,
-      frequencyLabel,
-    });
+    const frequencyLabel =
+      targetFrequencies.includes('WEEKLY') && !targetFrequencies.includes('DAILY')
+        ? 'Relatório Semanal'
+        : targetFrequencies.includes('DAILY') && !targetFrequencies.includes('WEEKLY')
+          ? 'Relatório Diário'
+          : 'Relatório Diário / Semanal';
 
     const cleanPassword = gmailPassword.replace(/\s+/g, '');
     const transporter = nodemailer.createTransport({
@@ -330,19 +364,50 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    const toList = recipients.map((r: any) => r.email).join(', ');
+    // Agrupa destinatários pelo conjunto de equipes selecionadas (para personalizar o relatório por destinatário)
+    const groups = new Map<string, { emails: string[]; teamIds: string[] }>();
+    for (const r of recipients) {
+      const tIds = extractRecipientTeamIds(r).sort();
+      const key = tIds.length === 0 ? '__ALL__' : tIds.join(',');
+      const current = groups.get(key) || { emails: [], teamIds: tIds };
+      current.emails.push(r.email);
+      groups.set(key, current);
+    }
 
-    await transporter.sendMail({
-      from: `"Gestão de Folgas & Férias AMS" <${gmailUser}>`,
-      to: toList,
-      subject: `[TIME AMS] ${frequencyLabel}: Folgas e Férias da Equipe`,
-      html: emailHtml,
-    });
+    const allSentEmails: string[] = [];
+
+    for (const [, group] of groups.entries()) {
+      const filteredTO = filterRecordsByTeams(timeOffs || [], group.teamIds);
+      const filteredVac = filterRecordsByTeams(vacations || [], group.teamIds);
+
+      const teamsScopeLabel =
+        group.teamIds.length === 0
+          ? 'Todas as Equipes'
+          : group.teamIds.map((id) => teamNameMap.get(id) || id).join(', ');
+
+      const emailHtml = buildReportEmailHtml({
+        timeOffs: filteredTO,
+        vacations: filteredVac,
+        todayStr,
+        frequencyLabel,
+        teamsScopeLabel,
+      });
+
+      const toList = group.emails.join(', ');
+      await transporter.sendMail({
+        from: `"Gestão de Folgas & Férias AMS" <${gmailUser}>`,
+        to: toList,
+        subject: `[TIME AMS] ${frequencyLabel}: Folgas e Férias (${teamsScopeLabel})`,
+        html: emailHtml,
+      });
+
+      allSentEmails.push(...group.emails);
+    }
 
     return res.status(200).json({
       success: true,
-      message: `Relatório automatizado (${frequencyLabel}) enviado com sucesso para ${recipients.length} destinatário(s): ${toList}`,
-      recipientCount: recipients.length,
+      message: `Relatório automatizado (${frequencyLabel}) enviado com sucesso para ${allSentEmails.length} destinatário(s): ${allSentEmails.join(', ')}`,
+      recipientCount: allSentEmails.length,
       timeOffCount: (timeOffs || []).length,
       vacationCount: (vacations || []).length,
     });

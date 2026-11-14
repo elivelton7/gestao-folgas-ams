@@ -19,19 +19,28 @@ import type {
   ReportFrequency,
   TimeOffWithEmployee,
   VacationWithEmployee,
+  Team,
 } from '../types/database';
 import { formatDateBR, isVacationCurrent, getTodayDateString } from '../utils/date';
+import { TeamMultiSelectFilter } from './TeamMultiSelectFilter';
 
 interface EmailReportsModalProps {
   isOpen: boolean;
   onClose: () => void;
   recipients: ReportRecipient[];
+  teams: Team[];
   loadingRecipients: boolean;
   onAddRecipient: (payload: {
     name?: string;
     email: string;
     frequency: ReportFrequency;
+    team_ids?: string[];
   }) => Promise<any>;
+  onUpdateRecipientTeams?: (
+    id: string,
+    currentName: string | null,
+    teamIds: string[]
+  ) => Promise<void>;
   onToggleActive: (id: string, currentStatus: boolean) => Promise<void>;
   onDeleteRecipient: (id: string) => Promise<void>;
   timeOffs: TimeOffWithEmployee[];
@@ -44,8 +53,10 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
   isOpen,
   onClose,
   recipients,
+  teams,
   loadingRecipients,
   onAddRecipient,
+  onUpdateRecipientTeams,
   onToggleActive,
   onDeleteRecipient,
   timeOffs,
@@ -60,12 +71,16 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [frequency, setFrequency] = useState<ReportFrequency>('DAILY');
+  const [newRecipientTeamIds, setNewRecipientTeamIds] = useState<string[]>([]);
+  const [previewTeamIds, setPreviewTeamIds] = useState<string[]>([]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isTriggeringCron, setIsTriggeringCron] = useState(false);
 
   const todayStr = getTodayDateString();
-  const previewVacations = useMemo(() => {
+
+  const allUpcomingVacations = useMemo(() => {
     return (vacations || [])
       .filter((item) => item.return_date > todayStr)
       .sort((a, b) => {
@@ -78,11 +93,27 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
       });
   }, [vacations, todayStr]);
 
-  const previewTimeOffs = useMemo(() => {
+  const allUpcomingTimeOffs = useMemo(() => {
     return (timeOffs || [])
       .filter((item) => item.date >= todayStr)
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [timeOffs, todayStr]);
+
+  const previewVacations = useMemo(() => {
+    if (previewTeamIds.length === 0) return allUpcomingVacations;
+    return allUpcomingVacations.filter((item) => {
+      const tId = item.employees?.team_id || item.employees?.teams?.id || '';
+      return tId && previewTeamIds.includes(tId);
+    });
+  }, [allUpcomingVacations, previewTeamIds]);
+
+  const previewTimeOffs = useMemo(() => {
+    if (previewTeamIds.length === 0) return allUpcomingTimeOffs;
+    return allUpcomingTimeOffs.filter((item) => {
+      const tId = item.employees?.team_id || item.employees?.teams?.id || '';
+      return tId && previewTeamIds.includes(tId);
+    });
+  }, [allUpcomingTimeOffs, previewTeamIds]);
 
   if (!isOpen) return null;
 
@@ -99,16 +130,33 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
         name: name.trim() || undefined,
         email: email.trim(),
         frequency,
+        team_ids: newRecipientTeamIds,
       });
 
       setEmail('');
       setName('');
       setFrequency('DAILY');
+      setNewRecipientTeamIds([]);
       onSuccessToast('Destinatário cadastrado com sucesso!');
     } catch (err: any) {
       onErrorToast(err.message || 'Erro ao cadastrar destinatário.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleChangeRecipientTeams = async (
+    recipient: ReportRecipient,
+    updatedTeamIds: string[]
+  ) => {
+    if (!onUpdateRecipientTeams) return;
+    try {
+      await onUpdateRecipientTeams(recipient.id, recipient.name, updatedTeamIds);
+      onSuccessToast(
+        `Equipes do relatório de "${recipient.name || recipient.email}" atualizadas!`
+      );
+    } catch (err: any) {
+      onErrorToast(err.message || 'Erro ao salvar equipes do destinatário.');
     }
   };
 
@@ -129,8 +177,9 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
         },
         body: JSON.stringify({
           recipients: activeRecipients,
-          timeOffs: previewTimeOffs,
-          vacations: previewVacations,
+          timeOffs: allUpcomingTimeOffs,
+          vacations: allUpcomingVacations,
+          teams,
         }),
       });
 
@@ -141,7 +190,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
       }
 
       onSuccessToast(
-        `E-mail com Folgas e Férias enviado com sucesso para ${activeRecipients.length} destinatário(s)!`
+        `E-mail personalizado por equipe enviado para ${activeRecipients.length} destinatário(s)!`
       );
     } catch (err: any) {
       console.error('Erro no envio:', err);
@@ -218,7 +267,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                 Relatórios Automatizados • TIME AMS
               </h2>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Escala de Folgas e Férias enviadas diretamente para a liderança e equipe
+                Escala de Folgas e Férias com filtro personalizado de equipes por destinatário
               </p>
             </div>
           </div>
@@ -277,12 +326,12 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
               {/* Formulário de Novo E-mail */}
               <form
                 onSubmit={handleAddSubmit}
-                className="apple-grouped-inset p-5 space-y-4"
+                className="relative z-30 apple-grouped-inset p-5 space-y-4"
               >
                 <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                   Adicionar Novo Destinatário
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                   <div>
                     <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                       Nome (Opcional)
@@ -319,18 +368,34 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                       onChange={(e) => setFrequency(e.target.value as ReportFrequency)}
                       className="apple-input bg-white dark:bg-[#2C2C2E] py-2 text-xs cursor-pointer"
                     >
-                      <option value="DAILY">Diário (todos os dias úteis às 08:00)</option>
+                      <option value="DAILY">Diário (todos os dias às 08:00)</option>
                       <option value="WEEKLY">Semanal (toda segunda às 08:00)</option>
                       <option value="REALTIME">Tempo Real (por disparo)</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                      Equipes que Receberá
+                    </label>
+                    <TeamMultiSelectFilter
+                      teams={teams}
+                      selectedTeamIds={newRecipientTeamIds}
+                      onChange={setNewRecipientTeamIds}
+                      label="Times:"
+                    />
+                  </div>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <p className="text-[11px] text-neutral-400">
+                    💡 Dica: Se nenhuma equipe específica for marcada, a pessoa receberá de{' '}
+                    <strong>Todos os Times</strong>.
+                  </p>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="apple-btn-primary py-2 px-5 text-xs"
+                    className="apple-btn-primary py-2 px-5 text-xs flex-shrink-0"
                   >
                     {isSubmitting ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -343,10 +408,10 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
               </form>
 
               {/* Lista Agrupada de Destinatários */}
-              <div className="space-y-3">
+              <div className="relative z-10 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                    Destinatários Ativos ({recipients.filter((r) => r.is_active).length} de{' '}
+                    Destinatários Cadastrados ({recipients.filter((r) => r.is_active).length} ativos de{' '}
                     {recipients.length})
                   </h3>
                 </div>
@@ -361,14 +426,15 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                     <p className="text-xs">Nenhum e-mail cadastrado ainda.</p>
                   </div>
                 ) : (
-                  <div className="apple-grouped-inset p-2 space-y-1.5">
-                    {recipients.map((recipient) => (
+                  <div className="apple-grouped-inset p-2 space-y-2">
+                    {recipients.map((recipient, idx) => (
                       <div
                         key={recipient.id}
-                        className="p-3.5 rounded-xl bg-white/90 dark:bg-[#2C2C2E]/85 flex items-center justify-between gap-4 shadow-apple-sm transition-all duration-200 ease-out"
+                        style={{ zIndex: recipients.length - idx }}
+                        className="relative p-3.5 rounded-xl bg-white/90 dark:bg-[#2C2C2E]/85 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-apple-sm transition-all duration-200 ease-out"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold text-xs text-[#1D1D1F] dark:text-white truncate">
                               {recipient.name || recipient.email}
                             </span>
@@ -381,11 +447,21 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Seletor de Equipes individual por destinatário */}
+                          <TeamMultiSelectFilter
+                            teams={teams}
+                            selectedTeamIds={recipient.team_ids || []}
+                            onChange={(updatedIds) =>
+                              handleChangeRecipientTeams(recipient, updatedIds)
+                            }
+                            label="Recebe:"
+                          />
+
                           <button
                             type="button"
                             onClick={() => onToggleActive(recipient.id, recipient.is_active)}
-                            className={`px-3 py-1 text-[11px] font-semibold rounded-full transition-all duration-200 ${
+                            className={`px-3 py-1.5 text-[11px] font-semibold rounded-full transition-all duration-200 ${
                               recipient.is_active
                                 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                                 : 'bg-neutral-500/10 text-neutral-500'
@@ -434,7 +510,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                     </li>
                     <li className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]"></span>
-                      <strong>Conteúdo Completo:</strong> Escala de Folgas + Férias da equipe (em curso e próximas).
+                      <strong>Filtro Personalizado por Pessoa:</strong> Cada destinatário recebe apenas os dados das equipes escolhidas no seu cadastro.
                     </li>
                   </ul>
                 </div>
@@ -521,17 +597,24 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
           {/* ABA 3: PRÉVIA DO RELATÓRIO E DISPARO */}
           {activeTab === 'preview' && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h4 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                     Prévia do Relatório por E-mail
                   </h4>
                   <p className="text-[11px] text-neutral-400">
-                    Exibe a programação completa de férias (em curso e próximas) e folgas
+                    Ao disparar, cada destinatário ativo receberá o relatório filtrado pelas suas próprias equipes
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
+                  <TeamMultiSelectFilter
+                    teams={teams}
+                    selectedTeamIds={previewTeamIds}
+                    onChange={setPreviewTeamIds}
+                    label="Simular Equipes:"
+                  />
+
                   <button
                     type="button"
                     onClick={handleTriggerCronTest}
@@ -547,7 +630,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                     ) : (
                       <>
                         <PlayCircle className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
-                        Testar Disparo Automático (Cron)
+                        Testar Cron
                       </>
                     )}
                   </button>
@@ -574,7 +657,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
               </div>
 
               {/* Template Mockup do E-mail */}
-              <div className="p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-[#2C2C2E]/60 font-sans text-xs shadow-apple-sm space-y-5">
+              <div className="relative z-10 p-6 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-white dark:bg-[#2C2C2E]/60 font-sans text-xs shadow-apple-sm space-y-5">
                 <div className="border-b border-black/[0.06] dark:border-white/10 pb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-[#0071E3] text-white flex items-center justify-center font-bold text-xs">
@@ -585,7 +668,13 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
                         Gestão de Folgas & Férias • TIME AMS
                       </span>
                       <span className="text-[10px] text-neutral-400">
-                        Relatório da Escala de Ausências da Equipe
+                        Escala de Ausências •{' '}
+                        {previewTeamIds.length === 0
+                          ? 'Todas as Equipes'
+                          : teams
+                              .filter((t) => previewTeamIds.includes(t.id))
+                              .map((t) => t.name)
+                              .join(', ')}
                       </span>
                     </div>
                   </div>
@@ -606,7 +695,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
 
                   {previewVacations.length === 0 ? (
                     <div className="text-center py-4 apple-grouped-inset text-neutral-400 italic">
-                      Nenhuma férias em curso ou próxima programada no momento.
+                      Nenhuma férias em curso ou próxima programada para as equipes selecionadas.
                     </div>
                   ) : (
                     <div className="overflow-x-auto apple-grouped-inset p-1.5">
@@ -674,7 +763,7 @@ export const EmailReportsModal: React.FC<EmailReportsModalProps> = ({
 
                   {previewTimeOffs.length === 0 ? (
                     <div className="text-center py-4 apple-grouped-inset text-neutral-400 italic">
-                      Não há folgas cadastradas para hoje ou próximas datas.
+                      Não há folgas cadastradas para as equipes selecionadas.
                     </div>
                   ) : (
                     <div className="overflow-x-auto apple-grouped-inset p-1.5">

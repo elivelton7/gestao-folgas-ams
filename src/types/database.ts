@@ -74,6 +74,7 @@ export interface ReportRecipient {
   email: string;
   frequency: ReportFrequency;
   is_active: boolean;
+  team_ids?: string[];
   created_at?: string;
 }
 
@@ -81,6 +82,7 @@ export interface CreateReportRecipientPayload {
   name?: string;
   email: string;
   frequency: ReportFrequency;
+  team_ids?: string[];
 }
 
 export interface Vacation {
@@ -104,4 +106,3 @@ export interface CreateVacationPayload {
   days: number;
   notes?: string | null;
 }
-

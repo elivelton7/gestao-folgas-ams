@@ -11,14 +11,17 @@ import {
   Eye,
   Palmtree,
   Users,
+  Clock,
 } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
+export type ActiveAppView = 'folgas' | 'ferias' | 'saldo';
+
 interface HeaderProps {
-  activeView: 'folgas' | 'ferias';
-  onViewChange: (view: 'folgas' | 'ferias') => void;
+  activeView: ActiveAppView;
+  onViewChange: (view: ActiveAppView) => void;
   onOpenEmailModal?: () => void;
   onOpenManagementModal?: () => void;
 }
@@ -65,19 +68,19 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               ) : null}
             </div>
-            <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate hidden md:block">
+            <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate hidden lg:block">
               Escala de trabalho, banco de horas e programação de férias
             </p>
           </div>
         </div>
 
-        {/* Segmented Control Estilo macOS / iOS: Folgas vs Férias */}
-        <nav aria-label="Navegação Principal" className="flex items-center">
+        {/* Segmented Control Estilo macOS / iOS: Folgas | Férias | Saldo de Horas */}
+        <nav aria-label="Navegação Principal" className="flex items-center overflow-x-auto">
           <div className="apple-segmented-control">
             <button
               onClick={() => onViewChange('folgas')}
               type="button"
-              className={`apple-segmented-item ${
+              className={`apple-segmented-item whitespace-nowrap ${
                 activeView === 'folgas'
                   ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
                   : 'apple-segmented-item-inactive'
@@ -89,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => onViewChange('ferias')}
               type="button"
-              className={`apple-segmented-item ${
+              className={`apple-segmented-item whitespace-nowrap ${
                 activeView === 'ferias'
                   ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
                   : 'apple-segmented-item-inactive'
@@ -98,11 +101,23 @@ export const Header: React.FC<HeaderProps> = ({
               <Palmtree className="w-4 h-4" />
               <span>Férias</span>
             </button>
+            <button
+              onClick={() => onViewChange('saldo')}
+              type="button"
+              className={`apple-segmented-item whitespace-nowrap ${
+                activeView === 'saldo'
+                  ? 'apple-segmented-item-active text-[#0071E3] dark:text-[#0A84FF]'
+                  : 'apple-segmented-item-inactive'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Saldo de Horas</span>
+            </button>
           </div>
         </nav>
 
         {/* Controles Minimalistas do Topo (Apenas Ícones Circulares Estilo Apple Toolbar) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Botão: Gestão de Equipes e Banco de Horas */}
           {onOpenManagementModal && (
             <button

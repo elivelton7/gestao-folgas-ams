@@ -1,9 +1,10 @@
 import type { TimeOffWithEmployee, VacationWithEmployee } from '../types/database';
+import type { EmployeeBalanceSummary } from './balance';
 import { formatDateBR } from './date';
 
 /**
  * Copia os dados da tabela em formato TSV (Tab-Separated Values)
- * para a área de transferência. Ao colar no Excel (Ctrl + V), 
+ * para a área de transferência. Ao colar no Excel (Ctrl + V),
  * os dados se encaixam automaticamente em linhas e colunas perfeitas.
  */
 export async function copyTableToClipboard(data: TimeOffWithEmployee[]): Promise<boolean> {
@@ -105,3 +106,66 @@ export function exportVacationsToExcel(data: VacationWithEmployee[], filenamePre
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Exporta o quadro de Saldo de Horas e Projeção para CSV (compatível com Excel).
+ */
+export function exportBalancesToExcel(
+  summaries: EmployeeBalanceSummary[],
+  getTeamName: (summary: EmployeeBalanceSummary) => string,
+  filenamePrefix: string = 'saldo-de-horas'
+): void {
+  if (!summaries || summaries.length === 0) return;
+
+  const headers = [
+    'Colaborador',
+    'Time',
+    'Saldo Base RH',
+    'Data-Base RH',
+    'Abatido ate Hoje',
+    'Saldo Hoje',
+    'Folgas Futuras Agendadas',
+    'Datas Agendadas',
+    'Projecao de Saldo Pos-Folgas',
+  ];
+
+  const rows = summaries.map((s) => {
+    const colab = `"${(s.employee.name || '').replace(/"/g, '""')}"`;
+    const time = `"${(getTeamName(s) || 'Sem equipe').replace(/"/g, '""')}"`;
+    const saldoBase = s.hasBaseBalance ? s.baseHHMM : '00:00';
+    const dataBase = s.baseDate ? formatDateBR(s.baseDate) : '-';
+    const abatidoHoje = s.deductedHHMM;
+    const saldoHoje = s.currentBalanceHHMM;
+    const agendadasHoras = s.scheduledFutureHHMM;
+    const datasAgendadas = `"${s.scheduledFutureTimeOffs
+      .map((to) => `${formatDateBR(to.date)} (${to.is_full_day ? '08:00' : `${to.hours}h`})`)
+      .join(', ')}"`;
+    const projecao = s.projectedBalanceHHMM;
+
+    return [
+      colab,
+      time,
+      saldoBase,
+      dataBase,
+      abatidoHoje,
+      saldoHoje,
+      agendadasHoras,
+      datasAgendadas,
+      projecao,
+    ].join(';');
+  });
+
+  const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${filenamePrefix}-${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}

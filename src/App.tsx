@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import type { ActiveAppView } from './components/Header';
 import { TimeOffForm } from './components/TimeOffForm';
 import { TimeOffList } from './components/TimeOffList';
 import { VacationForm } from './components/VacationForm';
 import { VacationList } from './components/VacationList';
+import { HoursBalanceView } from './components/HoursBalanceView';
 import { LoginPage } from './components/LoginPage';
 import { EmailReportsModal } from './components/EmailReportsModal';
 import { ManagementModal } from './components/ManagementModal';
@@ -24,10 +26,10 @@ const ACTIVE_VIEW_STORAGE_KEY = 'gestao-folgas-active-view';
 function MainApp() {
   const { isAuthenticated, loading: authLoading, isAdmin, isReadOnly, user } = useAuth();
   const { showToast } = useToast();
-  const [activeView, setActiveView] = useState<'folgas' | 'ferias'>(() => {
+  const [activeView, setActiveView] = useState<ActiveAppView>(() => {
     try {
       const saved = localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
-      return saved === 'ferias' || saved === 'folgas' ? saved : 'folgas';
+      return saved === 'ferias' || saved === 'folgas' || saved === 'saldo' ? saved : 'folgas';
     } catch {
       return 'folgas';
     }
@@ -80,6 +82,7 @@ function MainApp() {
     recipients,
     loading: loadingRecipients,
     addRecipient,
+    updateRecipientTeams,
     toggleActive,
     deleteRecipient,
   } = useReportRecipients();
@@ -192,7 +195,9 @@ function MainApp() {
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                   {activeView === 'folgas'
                     ? 'Você possui permissão para consultar o quadro de folgas, saldos e exportar planilhas para o Excel. O cadastro e exclusão são restritos ao perfil AMS-ADM.'
-                    : 'Você possui permissão para consultar a programação de férias e exportar planilhas para o Excel. O agendamento e exclusão de férias são restritos ao perfil AMS-ADM.'}
+                    : activeView === 'ferias'
+                      ? 'Você possui permissão para consultar a programação de férias e exportar planilhas para o Excel. O agendamento e exclusão de férias são restritos ao perfil AMS-ADM.'
+                      : 'Você possui permissão para consultar o saldo de horas, folgas futuras agendadas e a projeção de saldo. O lançamento de folgas é restrito ao perfil AMS-ADM.'}
                 </p>
               </div>
             </div>
@@ -200,7 +205,7 @@ function MainApp() {
         )}
 
         {/* ========================================= */}
-        {/* PÁGINA: QUADRO DE FOLGAS                 */}
+        {/* PÁGINA 1: QUADRO DE FOLGAS                */}
         {/* ========================================= */}
         {activeView === 'folgas' && (
           <div className="space-y-8 animate-in fade-in duration-200 ease-out">
@@ -232,7 +237,7 @@ function MainApp() {
         )}
 
         {/* ========================================= */}
-        {/* PÁGINA: PROGRAMAÇÃO DE FÉRIAS             */}
+        {/* PÁGINA 2: PROGRAMAÇÃO DE FÉRIAS           */}
         {/* ========================================= */}
         {activeView === 'ferias' && (
           <div className="space-y-8 animate-in fade-in duration-200 ease-out">
@@ -262,6 +267,26 @@ function MainApp() {
           </div>
         )}
 
+        {/* ========================================= */}
+        {/* PÁGINA 3: SALDO DE HORAS & PROJEÇÃO       */}
+        {/* ========================================= */}
+        {activeView === 'saldo' && (
+          <HoursBalanceView
+            employees={employees}
+            teams={teams}
+            timeOffs={timeOffs}
+            loading={loadingEmployees || loadingTimeOffs}
+            deletingTimeOffId={deletingId}
+            onAddTimeOff={addTimeOff}
+            onDeleteTimeOff={deleteTimeOff}
+            checkConflicts={checkConflicts}
+            onRefresh={handleRefreshTimeOffGrid}
+            onOpenManagementModal={isAdmin ? () => setIsManagementModalOpen(true) : undefined}
+            onSuccessToast={(msg) => showToast(msg, 'success')}
+            onErrorToast={(msg) => showToast(msg, 'error')}
+          />
+        )}
+
         {/* Modal de Gestão de Equipes, Colaboradores e Banco de Horas */}
         <ManagementModal
           isOpen={isManagementModalOpen}
@@ -286,8 +311,10 @@ function MainApp() {
             isOpen={isEmailModalOpen}
             onClose={() => setIsEmailModalOpen(false)}
             recipients={recipients}
+            teams={teams}
             loadingRecipients={loadingRecipients}
             onAddRecipient={addRecipient}
+            onUpdateRecipientTeams={updateRecipientTeams}
             onToggleActive={toggleActive}
             onDeleteRecipient={deleteRecipient}
             timeOffs={timeOffs}

@@ -265,16 +265,26 @@ export interface EmployeeBalanceSummary {
   deductedCountAfterBase: number;
   currentBalanceMinutes: number;
   currentBalanceHHMM: string;
+  scheduledFutureMinutes: number;
+  scheduledFutureHHMM: string;
+  scheduledFutureCount: number;
+  scheduledFutureTimeOffs: TimeOffWithEmployee[];
+  projectedBalanceMinutes: number;
+  projectedBalanceHHMM: string;
+  availableFullDaysToday: number;
+  availableFullDaysProjected: number;
 }
 
 /**
- * Calcula dinamicamente o "Saldo Hoje" de um colaborador segundo a Regra de Negócio Crítica:
+ * Calcula dinamicamente o "Saldo Hoje" e a "Projeção de Horas (após folgas futuras agendadas)"
+ * de um colaborador segundo a Regra de Negócio Crítica:
  * - 1 dia de folga integral (is_full_day = true) equivale a 08:00 (480 minutos).
  * - Folgas parciais abatem hours * 60 minutos.
- * - Regra de Corte Temporal:
+ * - Regra de Corte Temporal (Saldo Hoje):
  *   Apenas folgas com data ESTRITAMENTE APÓS a `data_base_saldo` (date > data_base_saldo)
- *   e até a data de hoje (date <= today) são descontadas.
- *   Folgas com data <= data_base_saldo NÃO são descontadas.
+ *   e até a data de hoje (date <= today) são descontadas no Saldo Hoje.
+ * - Projeção Futura:
+ *   Subtrai do Saldo Hoje todas as folgas futuras já agendadas (date > today e date > data_base_saldo).
  */
 export function calculateEmployeeBalance(
   employee: Employee,
@@ -298,7 +308,7 @@ export function calculateEmployeeBalance(
 
   const baseDate = employee.data_base_saldo || null;
 
-  // Filtra folgas do colaborador que ocorreram estritamente após a data-base até hoje
+  // 1. Filtra folgas do colaborador que ocorreram estritamente após a data-base até hoje
   const qualifyingTimeOffs = (timeOffs || []).filter((to) => {
     if (to.employee_id !== employee.id) return false;
     if (!to.date) return false;
@@ -315,15 +325,34 @@ export function calculateEmployeeBalance(
     return true;
   });
 
-  const deductedMinutesAfterBase = qualifyingTimeOffs.reduce((acc, to) => {
-    if (to.is_full_day) {
-      return acc + 480; // 08:00 (480 minutos)
-    }
-    const partialMinutes = Math.round((Number(to.hours) || 0) * 60);
-    return acc + partialMinutes;
-  }, 0);
+  // 2. Filtra folgas futuras agendadas (após hoje e após data-base)
+  const scheduledFutureTimeOffs = (timeOffs || [])
+    .filter((to) => {
+      if (to.employee_id !== employee.id) return false;
+      if (!to.date) return false;
+      if (to.date <= todayStr) return false;
+      if (baseDate && to.date <= baseDate) return false;
+      return true;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const getTimeOffMinutes = (to: TimeOffWithEmployee) => {
+    if (to.is_full_day) return 480; // 08:00 (480 minutos)
+    return Math.round((Number(to.hours) || 0) * 60);
+  };
+
+  const deductedMinutesAfterBase = qualifyingTimeOffs.reduce(
+    (acc, to) => acc + getTimeOffMinutes(to),
+    0
+  );
+
+  const scheduledFutureMinutes = scheduledFutureTimeOffs.reduce(
+    (acc, to) => acc + getTimeOffMinutes(to),
+    0
+  );
 
   const currentBalanceMinutes = baseMinutes - deductedMinutesAfterBase;
+  const projectedBalanceMinutes = currentBalanceMinutes - scheduledFutureMinutes;
 
   return {
     employee,
@@ -337,5 +366,14 @@ export function calculateEmployeeBalance(
     deductedCountAfterBase: qualifyingTimeOffs.length,
     currentBalanceMinutes,
     currentBalanceHHMM: minutesToHHMM(currentBalanceMinutes),
+    scheduledFutureMinutes,
+    scheduledFutureHHMM:
+      scheduledFutureMinutes > 0 ? `-${minutesToHHMM(scheduledFutureMinutes)}` : '00:00',
+    scheduledFutureCount: scheduledFutureTimeOffs.length,
+    scheduledFutureTimeOffs,
+    projectedBalanceMinutes,
+    projectedBalanceHHMM: minutesToHHMM(projectedBalanceMinutes),
+    availableFullDaysToday: Math.max(0, Math.floor(currentBalanceMinutes / 480)),
+    availableFullDaysProjected: Math.max(0, Math.floor(projectedBalanceMinutes / 480)),
   };
 }

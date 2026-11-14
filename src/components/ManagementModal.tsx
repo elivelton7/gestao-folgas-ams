@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   X,
   Users,
@@ -13,7 +13,6 @@ import {
   Plus,
   Loader2,
   Search,
-  Filter,
   CheckCircle2,
   ArrowRight,
   Info,
@@ -21,6 +20,7 @@ import {
   GitMerge,
   Trash2,
 } from 'lucide-react';
+import { TeamMultiSelectFilter, NO_TEAM_FILTER_ID } from './TeamMultiSelectFilter';
 import type {
   Employee,
   Team,
@@ -91,7 +91,24 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
   const [activeTab, setActiveTab] = useState<ModalTab>('balances');
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [teamFilter, setTeamFilter] = useState<string>('ALL');
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('gestao-folgas-management-teams');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('gestao-folgas-management-teams', JSON.stringify(selectedTeamIds));
+    } catch {
+      // ignore storage errors
+    }
+  }, [selectedTeamIds]);
 
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -138,17 +155,17 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
         if (!emp.name.toLowerCase().includes(q)) return false;
       }
 
-      if (teamFilter !== 'ALL') {
+      if (selectedTeamIds.length > 0) {
         const empTeamId = emp.team_id || emp.teams?.id || '';
-        if (teamFilter === 'NO_TEAM') {
-          return !empTeamId;
+        if (!empTeamId) {
+          return selectedTeamIds.includes(NO_TEAM_FILTER_ID);
         }
-        return empTeamId === teamFilter;
+        return selectedTeamIds.includes(empTeamId);
       }
 
       return true;
     });
-  }, [employeeSummaries, searchQuery, teamFilter]);
+  }, [employeeSummaries, searchQuery, selectedTeamIds]);
 
   if (!isOpen) return null;
 
@@ -1079,8 +1096,8 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
                 </form>
               )}
 
-              {/* Filtros de Busca e Equipe */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Filtros de Busca e Equipe (Múltipla Escolha) */}
+              <div className="relative z-30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -1092,33 +1109,17 @@ export const ManagementModal: React.FC<ManagementModalProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center gap-2 bg-neutral-100/90 dark:bg-[#2C2C2E] px-4 py-2 rounded-full border border-black/[0.06] dark:border-white/10">
-                  <Filter className="w-4 h-4 text-neutral-400" />
-                  <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-                    Equipe:
-                  </span>
-                  <select
-                    value={teamFilter}
-                    onChange={(e) => setTeamFilter(e.target.value)}
-                    className="bg-transparent text-xs sm:text-sm font-semibold text-[#1D1D1F] dark:text-neutral-200 focus:outline-none cursor-pointer"
-                  >
-                    <option value="ALL" className="dark:bg-[#1C1C1E]">
-                      Todas as Equipes
-                    </option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id} className="dark:bg-[#1C1C1E]">
-                        {t.name}
-                      </option>
-                    ))}
-                    <option value="NO_TEAM" className="dark:bg-[#1C1C1E]">
-                      Sem Equipe
-                    </option>
-                  </select>
-                </div>
+                <TeamMultiSelectFilter
+                  teams={teams}
+                  selectedTeamIds={selectedTeamIds}
+                  onChange={setSelectedTeamIds}
+                  includeNoTeamOption={true}
+                  label="Equipe:"
+                />
               </div>
 
               {/* Lista de Saldos e Colaboradores em Formato Grouped Inset List View */}
-              <div className="apple-grouped-inset p-2 overflow-x-auto">
+              <div className="relative z-10 apple-grouped-inset p-2 overflow-x-auto">
                 <table className="w-full text-left border-separate border-spacing-y-1">
                   <thead>
                     <tr className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
