@@ -573,9 +573,9 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
       </div>
 
       {/* Card Principal do Grid de Saldo de Horas e Projeção */}
-      <div className="relative z-20 apple-glass-card p-6 sm:p-8 space-y-6">
+      <div className="relative z-20 apple-glass-card p-5 sm:p-7 space-y-5">
         {/* Cabeçalho e Barra de Controles */}
-        <div className="relative z-30 flex flex-col gap-4 pb-2">
+        <div className="relative z-30 flex flex-col gap-4 pb-1">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h2 className="text-lg sm:text-xl font-semibold text-[#1D1D1F] dark:text-white tracking-tight">
@@ -598,7 +598,7 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
             )}
           </div>
 
-          {/* Barra de Busca, Segmented Control, Ordenação, Filtro Múltiplo de Equipes, Refresh e Excel */}
+          {/* Barra de Busca, Ordenação, Filtro Múltiplo de Equipes, Refresh e Excel */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             {/* Busca por Nome */}
             <div className="relative flex-1 min-w-[220px] max-w-md">
@@ -688,7 +688,7 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
           </div>
         </div>
 
-        {/* Tabela de Saldo de Horas e Projeção */}
+        {/* Tabela Compacta de Saldo de Horas e Projeção (Sem barra de rolagem horizontal em telas desktop) */}
         {loading ? (
           <div className="relative z-10 apple-grouped-inset flex flex-col items-center justify-center py-16 text-neutral-400">
             <Loader2 className="w-7 h-7 animate-spin text-[#0071E3] dark:text-[#0A84FF] mb-3" />
@@ -711,14 +711,14 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
             <table className="w-full text-left border-separate border-spacing-y-1">
               <thead>
                 <tr className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
-                  <th className="py-1.5 px-3">Colaborador</th>
-                  <th className="py-1.5 px-2.5">Time</th>
-                  <th className="py-1.5 px-2.5">Saldo Base (RH)</th>
-                  <th className="py-1.5 px-2.5">Abatido até Hoje</th>
-                  <th className="py-1.5 px-2.5">Saldo Hoje</th>
-                  <th className="py-1.5 px-2.5">Folgas Agendadas (Futuras)</th>
-                  <th className="py-1.5 px-2.5">Projeção (Pós-Folgas)</th>
-                  {!isReadOnly && <th className="py-1.5 px-3 text-right">Lançar Folga</th>}
+                  <th className="py-1.5 px-2.5">Colaborador</th>
+                  <th className="py-1.5 px-2">Time</th>
+                  <th className="py-1.5 px-2">Base RH</th>
+                  <th className="py-1.5 px-2">Abatido Hoje</th>
+                  <th className="py-1.5 px-2">Saldo Hoje</th>
+                  <th className="py-1.5 px-2">Folgas Agendadas</th>
+                  <th className="py-1.5 px-2">Projeção Final</th>
+                  {!isReadOnly && <th className="py-1.5 px-2.5 text-right">Ação</th>}
                 </tr>
               </thead>
               <tbody className="text-xs">
@@ -749,17 +749,22 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                         }`}
                       >
                         {/* 1. Colaborador */}
-                        <td className="py-2.5 px-3 font-semibold text-[#1D1D1F] dark:text-white whitespace-nowrap first:rounded-l-xl">
+                        <td className="py-2 px-2.5 font-semibold text-[#1D1D1F] dark:text-white first:rounded-l-xl max-w-[210px]">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full bg-gradient-to-b from-[#0071E3]/15 to-[#0071E3]/25 dark:from-[#0A84FF]/20 dark:to-[#0A84FF]/30 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center font-semibold text-[10px] uppercase flex-shrink-0">
                               {employee.name.charAt(0)}
                             </div>
-                            <span className="tracking-tight text-xs">{employee.name}</span>
+                            <span
+                              title={employee.name}
+                              className="tracking-tight text-xs truncate block"
+                            >
+                              {employee.name}
+                            </span>
                           </div>
                         </td>
 
                         {/* 2. Time */}
-                        <td className="py-2.5 px-2.5 whitespace-nowrap">
+                        <td className="py-2 px-2 whitespace-nowrap">
                           {teamName ? (
                             <span
                               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${getTeamBadgeStyle(
@@ -775,15 +780,15 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                         </td>
 
                         {/* 3. Saldo Base (RH) */}
-                        <td className="py-2.5 px-2.5 whitespace-nowrap">
+                        <td className="py-2 px-2 whitespace-nowrap">
                           {summary.hasBaseBalance ? (
-                            <div className="flex flex-col">
+                            <div className="flex flex-col leading-tight">
                               <span className="font-mono font-semibold text-xs text-[#1D1D1F] dark:text-neutral-200">
                                 {summary.baseHHMM}h
                               </span>
                               {summary.baseDate && (
                                 <span className="text-[10px] text-neutral-400">
-                                  Ref: {formatDateBR(summary.baseDate)}
+                                  Ref: {formatDateBR(summary.baseDate).slice(0, 5)}
                                 </span>
                               )}
                             </div>
@@ -793,10 +798,10 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                         </td>
 
                         {/* 4. Abatido até Hoje (Pós Data-Base) */}
-                        <td className="py-2.5 px-2.5 whitespace-nowrap">
+                        <td className="py-2 px-2 whitespace-nowrap">
                           {summary.deductedMinutesAfterBase > 0 ? (
                             <div className="flex items-center gap-1">
-                              <span className="font-mono font-semibold text-[11px] text-neutral-600 dark:text-neutral-300 bg-black/[0.05] dark:bg-white/10 px-2 py-0.5 rounded-full">
+                              <span className="font-mono font-semibold text-[11px] text-neutral-600 dark:text-neutral-300 bg-black/[0.05] dark:bg-white/10 px-1.5 py-0.5 rounded-full">
                                 {summary.deductedHHMM}h
                               </span>
                               <span className="text-[10px] text-neutral-400">
@@ -809,10 +814,10 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                         </td>
 
                         {/* 5. Saldo Hoje */}
-                        <td className="py-2.5 px-2.5 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                        <td className="py-2 px-2 whitespace-nowrap">
+                          <div className="flex items-center gap-1">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold ${
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold ${
                                 summary.currentBalanceMinutes < 0
                                   ? 'bg-rose-500/12 text-rose-600 dark:text-rose-300'
                                   : summary.currentBalanceMinutes > 0
@@ -826,44 +831,42 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                             {summary.availableFullDaysToday > 0 && (
                               <span
                                 title={`Com ${summary.currentBalanceHHMM}h de saldo hoje, é possível tirar até ${summary.availableFullDaysToday} folga(s) de dia inteiro (08:00h cada)`}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF]"
+                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF]"
                               >
-                                {summary.availableFullDaysToday}{' '}
-                                {summary.availableFullDaysToday === 1 ? 'dia (8h)' : 'dias (8h)'}
+                                {summary.availableFullDaysToday}d
                               </span>
                             )}
                           </div>
                         </td>
 
                         {/* 6. Folgas Agendadas (Futuras) */}
-                        <td className="py-2.5 px-2.5">
+                        <td className="py-2 px-2 max-w-[200px]">
                           {summary.scheduledFutureCount > 0 ? (
                             <div className="space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono font-semibold text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full">
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono font-semibold text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded-full">
                                   {summary.scheduledFutureHHMM}h
                                 </span>
                                 <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-medium">
-                                  ({summary.scheduledFutureCount}{' '}
-                                  {summary.scheduledFutureCount === 1
-                                    ? 'agendada'
-                                    : 'agendadas'}
-                                  )
+                                  ({summary.scheduledFutureCount}x)
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-1">
                                 {summary.scheduledFutureTimeOffs.map((to) => (
                                   <span
                                     key={to.id}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/[0.04] dark:bg-white/[0.08] text-[10px] font-mono text-neutral-600 dark:text-neutral-300"
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-black/[0.04] dark:bg-white/[0.08] text-[10px] font-mono text-neutral-600 dark:text-neutral-300 whitespace-nowrap"
                                     title={
                                       to.description
-                                        ? `${formatDateBR(to.date)}: ${to.description}`
-                                        : formatDateBR(to.date)
+                                        ? `${formatDateBR(to.date)} (${
+                                            to.is_full_day ? '08:00' : `${to.hours}h`
+                                          }): ${to.description}`
+                                        : `${formatDateBR(to.date)} (${
+                                            to.is_full_day ? '08:00' : `${to.hours}h`
+                                          })`
                                     }
                                   >
-                                    {formatDateBR(to.date).slice(0, 5)} (
-                                    {to.is_full_day ? '8h' : `${to.hours}h`})
+                                    {formatDateBR(to.date).slice(0, 5)}
                                     {!isReadOnly && (
                                       <button
                                         type="button"
@@ -890,29 +893,27 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                               </div>
                             </div>
                           ) : (
-                            <span className="text-[11px] text-neutral-400 italic">
-                              Nenhuma futura
-                            </span>
+                            <span className="text-[11px] text-neutral-400 italic">-</span>
                           )}
                         </td>
 
                         {/* 7. Projeção Pós-Folgas */}
                         <td
-                          className={`py-2.5 px-2.5 whitespace-nowrap ${
+                          className={`py-2 px-2 whitespace-nowrap ${
                             isReadOnly ? 'last:rounded-r-xl' : ''
                           }`}
                         >
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1">
                             {summary.scheduledFutureMinutes > 0 && (
                               <>
-                                <span className="text-[11px] font-mono text-neutral-400 line-through">
+                                <span className="text-[10px] font-mono text-neutral-400 line-through">
                                   {summary.currentBalanceHHMM}h
                                 </span>
-                                <ArrowRight className="w-3 h-3 text-neutral-400" />
+                                <ArrowRight className="w-3 h-3 text-neutral-400 flex-shrink-0" />
                               </>
                             )}
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold ${
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold ${
                                 summary.projectedBalanceMinutes < 0
                                   ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300 ring-1 ring-rose-500/30'
                                   : summary.projectedBalanceMinutes > 0
@@ -925,46 +926,28 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                           </div>
                         </td>
 
-                        {/* 8. Botão de Lançar Folga Rápida */}
+                        {/* 8. Botão Sempre Visível de Lançar Folga */}
                         {!isReadOnly && (
-                          <td className="py-2.5 px-3 text-right whitespace-nowrap last:rounded-r-xl">
+                          <td className="py-2 px-2.5 text-right whitespace-nowrap last:rounded-r-xl">
                             {isLaunchingThis ? (
                               <button
                                 type="button"
                                 onClick={closeQuickLaunch}
-                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:opacity-90 transition"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:opacity-90 transition"
                               >
                                 <X className="w-3 h-3" />
                                 Fechar
                               </button>
                             ) : (
-                              <div className="flex items-center justify-end gap-1.5">
-                                {summary.availableFullDaysProjected >= 2 && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openQuickLaunch(
-                                        summary,
-                                        summary.availableFullDaysProjected
-                                      )
-                                    }
-                                    title={`Preparar ${summary.availableFullDaysProjected} folgas de 8h automaticamente`}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 transition"
-                                  >
-                                    <Sparkles className="w-3 h-3" />
-                                    Lançar {summary.availableFullDaysProjected}x (
-                                    {summary.availableFullDaysProjected * 8}h)
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => openQuickLaunch(summary, 1)}
-                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#0071E3] dark:bg-[#0A84FF] hover:brightness-110 text-white shadow-apple-sm active:scale-95 transition-all duration-150"
-                                >
-                                  <CalendarPlus className="w-3 h-3" />
-                                  Lançar Folga
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => openQuickLaunch(summary, 1)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#0071E3] dark:bg-[#0A84FF] hover:brightness-110 text-white shadow-apple-sm active:scale-95 transition-all duration-150"
+                                title="Simular e lançar folga(s) para este colaborador"
+                              >
+                                <CalendarPlus className="w-3 h-3" />
+                                <span>Lançar Folga</span>
+                              </button>
                             )}
                           </td>
                         )}
@@ -977,7 +960,7 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                             <div className="my-1.5 p-5 rounded-2xl bg-white dark:bg-[#1C1C1E] border-2 border-[#0071E3]/30 dark:border-[#0A84FF]/40 shadow-apple-lg space-y-4 animate-in fade-in duration-150">
                               {/* Barra de Simulação da Projeção em Tempo Real */}
                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3.5 border-b border-black/[0.06] dark:border-white/10">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 flex-wrap">
                                   <div className="w-9 h-9 rounded-2xl bg-[#0071E3]/10 dark:bg-[#0A84FF]/15 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center">
                                     <CalendarPlus className="w-5 h-5" />
                                   </div>
@@ -989,6 +972,24 @@ export const HoursBalanceView: React.FC<HoursBalanceViewProps> = ({
                                       Adicione uma ou mais datas abaixo e acompanhe a projeção do saldo de horas em tempo real
                                     </p>
                                   </div>
+
+                                  {summary.availableFullDaysProjected >= 2 &&
+                                    draftSlots.length < summary.availableFullDaysProjected && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          openQuickLaunch(
+                                            summary,
+                                            summary.availableFullDaysProjected
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition"
+                                      >
+                                        <Sparkles className="w-3.5 h-3.5" />
+                                        Preencher {summary.availableFullDaysProjected} folgas de 8h (
+                                        {summary.availableFullDaysProjected * 8}:00h)
+                                      </button>
+                                    )}
                                 </div>
 
                                 {/* Resumo Numérico da Simulação */}
